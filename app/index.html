@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troisième République — Bases</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1e1e1e;
+    --bg2: #252525;
+    --bg3: #2d2d2d;
+    --bg4: #333;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #dcddde;
+    --text2: #999;
+    --text3: #666;
+    --accent: #7c6df0;
+    --accent-light: #a99ef5;
+    --accent-bg: rgba(124,109,240,0.15);
+    --link: #8eb4f0;
+    --tag-bg: rgba(100,180,120,0.18);
+    --tag-text: #7ec89e;
+    --tag-border: rgba(100,180,120,0.3);
+    --row-hover: rgba(255,255,255,0.03);
+    --header-h: 44px;
+    --toolbar-h: 42px;
+    --col-min: 100px;
+    --font: -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+    --radius: 4px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    height: var(--toolbar-h); min-height: var(--toolbar-h);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    user-select: none;
+  }
+  #toolbar .view-label {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 3px 8px; cursor: pointer;
+    font-size: 12px; color: var(--text);
+  }
+  #toolbar .view-label svg { width: 13px; height: 13px; opacity: 0.7; }
+  #result-count { font-size: 12px; color: var(--text2); margin-left: 2px; }
+  #toolbar .spacer { flex: 1; }
+  .tb-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: none; border: none; color: var(--text2);
+    font-size: 12px; padding: 4px 8px; border-radius: var(--radius);
+    cursor: pointer; font-family: var(--font);
+  }
+  .tb-btn:hover { background: var(--bg4); color: var(--text); }
+  .tb-btn svg { width: 13px; height: 13px; }
+  #search-input {
+    background: var(--bg3); border: 1px solid var(--border2);
+    color: var(--text); border-radius: var(--radius);
+    padding: 4px 8px 4px 26px; font-size: 12px; width: 200px;
+    font-family: var(--font); outline: none;
+  }
+  #search-input:focus { border-color: var(--accent); }
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-wrap svg { position: absolute; left: 7px; width: 12px; height: 12px; color: var(--text3); pointer-events: none; }
+
+  /* ── Filter bar ── */
+  #filter-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    min-height: 36px;
+  }
+  .filter-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 100px; padding: 2px 8px 2px 6px;
+    font-size: 11px; color: var(--text2); cursor: pointer;
+  }
+  .filter-pill.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-light); }
+  .filter-pill select {
+    background: none; border: none; color: inherit; font-size: 11px;
+    font-family: var(--font); cursor: pointer; outline: none;
+    max-width: 140px;
+  }
+  .filter-pill select option { background: var(--bg3); color: var(--text); }
+  #filter-bar label { font-size: 11px; color: var(--text3); }
+
+  /* ── Table wrapper ── */
+  #table-wrap { flex: 1; overflow: auto; position: relative; }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 800px; }
+
+  /* Column widths */
+  col.c-nom       { width: 220px; }
+  col.c-prenom    { width: 150px; }
+  col.c-inst      { width: 90px; }
+  col.c-groupe    { width: 200px; }
+  col.c-position  { width: 160px; }
+  col.c-debut     { width: 90px; }
+  col.c-fin       { width: 90px; }
+  col.c-liens     { width: 80px; }
+
+  thead tr {
+    height: var(--header-h);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border2);
+    position: sticky; top: 0; z-index: 10;
+  }
+  th {
+    padding: 0 10px; text-align: left; font-weight: 500;
+    color: var(--text2); font-size: 12px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-right: 1px solid var(--border);
+    user-select: none;
+  }
+  th:last-child { border-right: none; }
+  th:hover { color: var(--text); background: var(--bg3); }
+  th.sorted { color: var(--accent-light); }
+  .th-inner { display: flex; align-items: center; gap: 5px; }
+  .th-icon { width: 11px; height: 11px; opacity: 0.5; flex-shrink: 0; }
+  .sort-arrow { margin-left: auto; font-size: 10px; opacity: 0.6; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    height: 34px; cursor: default;
+    transition: background 0.05s;
+  }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.selected { background: var(--accent-bg); }
+
+  td {
+    padding: 0 10px; font-size: 12px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-right: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  td:last-child { border-right: none; }
+
+  /* Name cell — link style */
+  td.cell-name a {
+    color: var(--link); text-decoration: none; font-weight: 500;
+  }
+  td.cell-name a:hover { text-decoration: underline; }
+
+  /* Tag pills */
+  .tag {
+    display: inline-flex; align-items: center;
+    background: var(--tag-bg); color: var(--tag-text);
+    border: 1px solid var(--tag-border);
+    border-radius: 100px; padding: 1px 7px; font-size: 11px;
+    white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tag.inst-chambre  { background: rgba(100,140,220,0.15); color: #8eb4f0; border-color: rgba(100,140,220,0.3); }
+  .tag.inst-senat    { background: rgba(200,130,80,0.15); color: #e0a070; border-color: rgba(200,130,80,0.3); }
+  .tag.inst-gouv     { background: rgba(180,100,160,0.15); color: #d490c0; border-color: rgba(180,100,160,0.3); }
+
+  /* Date */
+  td.cell-date { color: var(--text2); font-family: var(--font-mono); font-size: 11px; }
+
+  /* Links cell */
+  td.cell-links { color: var(--text3); }
+  td.cell-links a { color: var(--text3); text-decoration: none; margin-right: 6px; font-size: 11px; }
+  td.cell-links a:hover { color: var(--link); }
+
+  /* ── Loading / empty ── */
+  #loading, #empty {
+    display: none; position: absolute; top: 80px; left: 50%;
+    transform: translateX(-50%); color: var(--text2); font-size: 13px;
+  }
+
+  /* ── Detail panel ── */
+  #detail-panel {
+    display: none;
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 380px; background: var(--bg2);
+    border-left: 1px solid var(--border2);
+    overflow-y: auto; z-index: 100;
+    flex-direction: column;
+  }
+  #detail-panel.open { display: flex; }
+  #dp-close {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; color: var(--text2);
+    cursor: pointer; padding: 4px; border-radius: var(--radius);
+    font-size: 16px; line-height: 1;
+  }
+  #dp-close:hover { background: var(--bg4); color: var(--text); }
+  #dp-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); }
+  #dp-name { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  #dp-meta { font-size: 12px; color: var(--text2); }
+  #dp-props { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .dp-row { display: flex; gap: 10px; padding: 5px 0; font-size: 12px; align-items: baseline; }
+  .dp-key { color: var(--text2); width: 90px; flex-shrink: 0; }
+  .dp-val { color: var(--text); word-break: break-all; }
+  .dp-val a { color: var(--link); text-decoration: none; }
+  .dp-val a:hover { text-decoration: underline; }
+  #dp-mandates { padding: 14px 20px; }
+  #dp-mandates h3 { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .mandate-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 11px; margin-bottom: 7px;
+  }
+  .mandate-card .mc-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+  .mandate-card .mc-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mandate-card .mc-dates { font-size: 11px; color: var(--text2); font-family: var(--font-mono); }
+  .mandate-card .mc-group { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .mandate-card .mc-pos { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  /* ── Pagination ── */
+  #pagination {
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 6px 12px; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text2);
+  }
+  .pg-btn {
+    background: var(--bg3); border: 1px solid var(--border2); color: var(--text2);
+    border-radius: var(--radius); padding: 2px 8px; cursor: pointer; font-size: 12px;
+    font-family: var(--font);
+  }
+  .pg-btn:hover:not(:disabled) { background: var(--bg4); color: var(--text); }
+  .pg-btn:disabled { opacity: 0.3; cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <div class="view-label">
+    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    Mandats
+    <svg viewBox="0 0 16 16" fill="currentColor" style="width:9px;height:9px;opacity:0.5"><path d="M4 6l4 4 4-4"/></svg>
+  </div>
+  <span id="result-count" style="color:var(--text3)">—</span>
+
+  <div class="spacer"></div>
+
+  <div class="search-wrap">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3 3"/></svg>
+    <input id="search-input" type="text" placeholder="Chercher un nom…" autocomplete="off">
+  </div>
+
+  <button class="tb-btn" onclick="toggleFilters()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M4 8h8M6 12h4"/></svg>
+    Filtrer
+  </button>
+  <button class="tb-btn" id="sort-btn" onclick="cycleSortDir()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M4 10l4 4 4-4"/></svg>
+    <span id="sort-label">Trier</span>
+  </button>
+</div>
+
+<!-- Filter bar -->
+<div id="filter-bar" style="display:none">
+  <label>Institution</label>
+  <div class="filter-pill" id="fp-inst">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:11px;height:11px"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>
+    <select id="filter-inst" onchange="applyFilters()">
+      <option value="">Toutes</option>
+      <option value="chambre">Chambre</option>
+      <option value="senat">Sénat</option>
+      <option value="gouvernement">Gouvernement</option>
+    </select>
+  </div>
+
+  <label>Groupe politique</label>
+  <div class="filter-pill" id="fp-group">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:11px;height:11px"><circle cx="8" cy="8" r="5"/></svg>
+    <input type="text" id="filter-group" placeholder="ex: radical…" style="background:none;border:none;color:var(--text2);font-size:11px;font-family:var(--font);outline:none;width:130px;" oninput="debounceFilters()">
+  </div>
+
+  <label>Département/position</label>
+  <div class="filter-pill" id="fp-dept">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:11px;height:11px"><path d="M8 2l1.5 4.5H14l-3.7 2.7 1.4 4.3L8 11l-3.7 2.5 1.4-4.3L2 6.5h4.5z"/></svg>
+    <input type="text" id="filter-dept" placeholder="ex: Seine…" style="background:none;border:none;color:var(--text2);font-size:11px;font-family:var(--font);outline:none;width:110px;" oninput="debounceFilters()">
+  </div>
+</div>
+
+<!-- Table -->
+<div id="table-wrap">
+  <div id="loading">Chargement…</div>
+  <div id="empty">Aucun résultat.</div>
+  <table id="main-table">
+    <colgroup>
+      <col class="c-nom"><col class="c-prenom"><col class="c-inst">
+      <col class="c-position"><col class="c-groupe">
+      <col class="c-debut"><col class="c-fin"><col class="c-liens">
+    </colgroup>
+    <thead>
+      <tr>
+        <th onclick="setSort('last_name')" id="h-nom">
+          <div class="th-inner">
+            <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+            Nom <span class="sort-arrow" id="sa-last_name"></span>
+          </div>
+        </th>
+        <th onclick="setSort('first_name')" id="h-prenom">
+          <div class="th-inner">Prénom <span class="sort-arrow" id="sa-first_name"></span></div>
+        </th>
+        <th>
+          <div class="th-inner">
+            <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 11h4"/></svg>
+            Institution
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 4.5H14l-3.7 2.7 1.4 4.3L8 11l-3.7 2.5 1.4-4.3L2 6.5h4.5z"/></svg>
+            Département / poste
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>
+            Groupe politique
+          </div>
+        </th>
+        <th onclick="setSort('mandate_start_date')">
+          <div class="th-inner">Début <span class="sort-arrow" id="sa-mandate_start_date"></span></div>
+        </th>
+        <th onclick="setSort('mandate_end_date')">
+          <div class="th-inner">Fin <span class="sort-arrow" id="sa-mandate_end_date"></span></div>
+        </th>
+        <th>
+          <div class="th-inner">Liens</div>
+        </th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div id="pagination">
+  <button class="pg-btn" id="btn-prev" onclick="changePage(-1)" disabled>← Préc.</button>
+  <span id="pg-info">—</span>
+  <button class="pg-btn" id="btn-next" onclick="changePage(1)">Suiv. →</button>
+  <div style="flex:1"></div>
+  <span id="pg-total" style="color:var(--text3)"></span>
+</div>
+
+<!-- Detail panel -->
+<div id="detail-panel">
+  <button id="dp-close" onclick="closeDetail()">✕</button>
+  <div id="dp-header">
+    <div id="dp-name"></div>
+    <div id="dp-meta"></div>
+  </div>
+  <div id="dp-props"></div>
+  <div id="dp-mandates">
+    <h3>Mandats</h3>
+    <div id="dp-mandate-list"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+const PAGE_SIZE = 50;
+let currentPage = 0;
+let totalRows = 0;
+let sortField = 'last_name';
+let sortDir = 'asc';
+let debounceTimer = null;
+let filtersVisible = false;
+
+function toggleFilters() {
+  filtersVisible = !filtersVisible;
+  document.getElementById('filter-bar').style.display = filtersVisible ? 'flex' : 'none';
+}
+
+function debounceFilters() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(applyFilters, 350);
+}
+
+function applyFilters() {
+  currentPage = 0;
+  loadData();
+}
+
+function setSort(field) {
+  if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortField = field; sortDir = 'asc'; }
+  ['last_name','first_name','mandate_start_date','mandate_end_date'].forEach(f => {
+    const el = document.getElementById('sa-' + f);
+    if (el) el.textContent = '';
+  });
+  const arrow = document.getElementById('sa-' + field);
+  if (arrow) arrow.textContent = sortDir === 'asc' ? ' ↑' : ' ↓';
+  document.getElementById('sort-label').textContent = field.replace('_',' ') + (sortDir==='asc'?' ↑':' ↓');
+  loadData();
+}
+
+function cycleSortDir() {
+  sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  setSort(sortField);
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  loadData();
+}
+
+function instClass(inst) {
+  if (!inst) return '';
+  const i = inst.toLowerCase();
+  if (i.includes('chambre')) return 'inst-chambre';
+  if (i.includes('senat')) return 'inst-senat';
+  if (i.includes('gouv')) return 'inst-gouv';
+  return '';
+}
+function instLabel(inst) {
+  if (!inst) return '';
+  const i = inst.toLowerCase();
+  if (i.includes('chambre')) return 'Chambre';
+  if (i.includes('senat')) return 'Sénat';
+  if (i.includes('gouvernement')) return 'Gouv.';
+  return inst;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return d.slice(0,10);
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('tbody').innerHTML = '';
+
+  const name   = document.getElementById('search-input').value.trim();
+  const inst   = document.getElementById('filter-inst').value;
+  const group  = document.getElementById('filter-group').value.trim();
+  const dept   = document.getElementById('filter-dept').value.trim();
+  const offset = currentPage * PAGE_SIZE;
+
+  const params = new URLSearchParams({ limit: PAGE_SIZE, offset });
+  if (name)  params.set('last_name', name);
+  if (inst)  params.set('institution', inst);
+  if (group) params.set('group', group);
+  if (dept)  params.set('department', dept);
+
+  try {
+    const [personsRes, countRes] = await Promise.all([
+      fetch(`${API}/persons?${params}`),
+      fetch(`${API}/persons?${new URLSearchParams({...Object.fromEntries(params), limit:500, offset:0})}`)
+    ]);
+    const persons = await personsRes.json();
+    const allPersons = await countRes.json();
+    totalRows = allPersons.length;
+
+    document.getElementById('loading').style.display = 'none';
+
+    if (persons.length === 0) {
+      document.getElementById('empty').style.display = 'block';
+      document.getElementById('result-count').textContent = '0 résultats';
+      updatePagination();
+      return;
+    }
+
+    document.getElementById('result-count').textContent = `${totalRows} résultat${totalRows > 1 ? 's' : ''}`;
+    updatePagination();
+
+    const details = await Promise.all(
+      persons.slice(0, PAGE_SIZE).map(p =>
+        fetch(`${API}/persons/${p.person_id}`).then(r => r.json()).catch(() => p)
+      )
+    );
+
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    for (const p of details) {
+      const mandates = p.mandates || [];
+      if (mandates.length === 0) {
+        appendRow(tbody, p, null);
+      } else {
+        for (const m of mandates) {
+          appendRow(tbody, p, m);
+        }
+      }
+    }
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('empty').textContent = 'Erreur : API inaccessible. Vérifiez que uvicorn tourne sur le port 8000.';
+    document.getElementById('empty').style.display = 'block';
+    console.error(e);
+  }
+}
+
+function appendRow(tbody, person, mandate) {
+  const tr = document.createElement('tr');
+  const inst = mandate ? mandate.institution : '';
+  const cls = instClass(inst);
+
+  tr.innerHTML = `
+    <td class="cell-name"><a href="#" onclick="openDetail('${person.person_id}');return false;">${esc(person.last_name || '')}</a></td>
+    <td>${esc(person.first_name || '')}</td>
+    <td>${inst ? `<span class="tag ${cls}">${instLabel(inst)}</span>` : ''}</td>
+    <td title="${esc(mandate ? mandate.position || '' : '')}">${esc(mandate ? mandate.position || '' : '')}</td>
+    <td title="${esc(mandate ? mandate.group || '' : '')}">${mandate && mandate.group ? `<span class="tag">${esc(mandate.group)}</span>` : ''}</td>
+    <td class="cell-date">${fmtDate(mandate ? mandate.start_date : '')}</td>
+    <td class="cell-date">${fmtDate(mandate ? mandate.end_date : '')}</td>
+    <td class="cell-links">
+      ${person.wikipedia_url ? `<a href="${person.wikipedia_url}" target="_blank" title="Wikipedia">W</a>` : ''}
+      ${person.wikidata_qid ? `<a href="https://www.wikidata.org/wiki/${person.wikidata_qid}" target="_blank" title="Wikidata">D</a>` : ''}
+      ${person.sycomore_id ? `<a href="https://www.assemblee-nationale.fr/sycomore/fiche.asp?num_dept=${person.sycomore_id}" target="_blank" title="Sycomore">S</a>` : ''}
+    </td>
+  `;
+  tr.addEventListener('click', (e) => {
+    if (!e.target.closest('a')) openDetail(person.person_id);
+  });
+  tbody.appendChild(tr);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function updatePagination() {
+  const start = currentPage * PAGE_SIZE + 1;
+  const end = Math.min((currentPage + 1) * PAGE_SIZE, totalRows);
+  document.getElementById('pg-info').textContent = totalRows > 0 ? `${start}–${end}` : '—';
+  document.getElementById('pg-total').textContent = totalRows > 0 ? `sur ${totalRows}` : '';
+  document.getElementById('btn-prev').disabled = currentPage === 0;
+  document.getElementById('btn-next').disabled = end >= totalRows;
+}
+
+async function openDetail(personId) {
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('open');
+
+  document.getElementById('dp-name').textContent = '…';
+  document.getElementById('dp-meta').textContent = '';
+  document.getElementById('dp-props').innerHTML = '';
+  document.getElementById('dp-mandate-list').innerHTML = '<span style="color:var(--text3);font-size:12px">Chargement…</span>';
+
+  try {
+    const data = await fetch(`${API}/persons/${personId}`).then(r => r.json());
+
+    document.getElementById('dp-name').textContent = `${data.last_name}${data.first_name ? ', ' + data.first_name : ''}`;
+    const born = data.birth_date ? data.birth_date.slice(0,10) : '?';
+    const died = data.death_date ? data.death_date.slice(0,10) : '';
+    document.getElementById('dp-meta').textContent = `${born}${died ? ' – ' + died : ''}`;
+
+    const propsEl = document.getElementById('dp-props');
+    const rows = [
+      ['ID', data.person_id],
+      ['Wikidata', data.wikidata_qid ? `<a href="https://www.wikidata.org/wiki/${esc(data.wikidata_qid)}" target="_blank">${esc(data.wikidata_qid)}</a>` : ''],
+      ['Wikipedia', data.wikipedia_url ? `<a href="${esc(data.wikipedia_url)}" target="_blank">→ article</a>` : ''],
+      ['Sycomore', data.sycomore_id || ''],
+      ['Sénat', data.senat_id || ''],
+    ];
+    propsEl.innerHTML = rows.filter(r => r[1]).map(r => `
+      <div class="dp-row">
+        <span class="dp-key">${r[0]}</span>
+        <span class="dp-val">${r[1]}</span>
+      </div>`).join('');
+
+    const mandates = data.mandates || [];
+    const ml = document.getElementById('dp-mandate-list');
+    if (mandates.length === 0) {
+      ml.innerHTML = '<span style="color:var(--text3);font-size:12px">Aucun mandat.</span>';
+    } else {
+      ml.innerHTML = mandates.map(m => {
+        const cls = instClass(m.institution);
+        return `<div class="mandate-card">
+          <div class="mc-top">
+            <span class="tag ${cls}">${instLabel(m.institution)}</span>
+            <span class="mc-name" title="${esc(m.mandature_name || '')}">${esc(m.mandature_name || '')}</span>
+          </div>
+          ${m.position ? `<div class="mc-pos">${esc(m.position)}</div>` : ''}
+          ${m.group ? `<div class="mc-group">${esc(m.group)}</div>` : ''}
+          <div class="mc-dates">${fmtDate(m.start_date)}${m.end_date ? ' → ' + fmtDate(m.end_date) : ''}</div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('dp-mandate-list').innerHTML = '<span style="color:var(--text-danger);font-size:12px">Erreur de chargement.</span>';
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => { currentPage = 0; loadData(); }, 400);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDetail();
+});
+
+loadData();
+</script>
+</body>
+</html>
