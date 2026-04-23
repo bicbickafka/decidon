@@ -1,34 +1,44 @@
-from pydantic import BaseModel
 from typing import Optional
+from datetime import date
+from sqlalchemy import String, ForeignKey, Date
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.database import Base
 
-class LegislatureOut(BaseModel):
-    legislature_id: str
-    institution: str
-    name: str
-    start_date: str
-    end_date: str
-    wikidata_qid: Optional[str] = None
-    wikipedia_url: Optional[str] = None
 
-class MandateOut(BaseModel):
-    legislature_id: str
-    institution: str
-    legislature_name: str
-    position: Optional[str] = None
-    group: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+class Person(Base):
+    __tablename__ = "persons"
+    person_id: Mapped[str] = mapped_column(String, primary_key=True)
+    last_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    first_name: Mapped[str] = mapped_column(String, nullable=False)
+    alias: Mapped[str] = mapped_column(String, nullable=True)
+    birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    death_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    wikidata_qid: Mapped[str] = mapped_column(String, nullable=True)
+    wikipedia_url: Mapped[str] = mapped_column(String, nullable=True)
+    sycomore_id: Mapped[str] = mapped_column(String, nullable=True)
+    senat_id: Mapped[str] = mapped_column(String, nullable=True)
+    mandates: Mapped[list["Mandate"]] = relationship(back_populates="person")
 
-class PersonOut(BaseModel):
-    person_id: str
-    last_name: str
-    first_name: Optional[str] = None
-    birth_date: Optional[str] = None
-    death_date: Optional[str] = None
-    wikidata_qid: Optional[str] = None
-    wikipedia_url: Optional[str] = None
-    sycomore_id: Optional[str] = None
-    senat_id: Optional[str] = None
+class Legislature(Base):
+    __tablename__ = "legislatures"
+    legislature_id: Mapped[str] = mapped_column(String, primary_key=True)
+    institution: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=False)
+    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=False)
+    wikidata_qid: Mapped[str] = mapped_column(String, nullable=True)
+    wikipedia_url: Mapped[str] = mapped_column(String, nullable=True)
+    mandates: Mapped[list["Mandate"]] = relationship(back_populates="legislature")
 
-class PersonDetailOut(PersonOut):
-    mandates: list[MandateOut] = []
+class Mandate(Base):
+    __tablename__ = "mandates"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    person_id: Mapped[str] = mapped_column(ForeignKey("persons.person_id"), nullable=False)
+    legislature_id: Mapped[str] = mapped_column(ForeignKey("legislatures.legislature_id"), nullable=False)
+    position: Mapped[str] = mapped_column(String, nullable=False)
+    group: Mapped[str] = mapped_column(String, nullable=True)
+    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    person: Mapped["Person"] = relationship(back_populates="mandates")
+    legislature: Mapped["Legislature"] = relationship(back_populates="mandates")
