@@ -1,976 +1,663 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Troisième République — Bases</title>
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Référentiel Parlementaire — IIIe République</title>
 
-:root {
-  --bg:           #ffffff;
-  --bg2:          #f2f3f5;
-  --bg3:          #e8eaed;
-  --bg4:          #dde0e4;
-  --border:       #e2e4e8;
-  --border2:      #c8ccd2;
-  --text:         #1a1b1e;
-  --text2:        #5a6070;
-  --text3:        #9099a8;
-  --accent:       #4a5568;
-  --accent-bg:    rgba(74,85,104,0.07);
-  --link:         #3b5bdb;
-  --tag-chambre:  #1c4ed8;
-  --tag-senat:    #b45309;
-  --tag-gouv:     #6d28d9;
-  --danger:       #c0392b;
-  --header-h:     36px;
-  --toolbar-h:    40px;
-  --font:         -apple-system,'Segoe UI',system-ui,sans-serif;
-  --font-mono:    'SF Mono','Fira Code','Consolas',monospace;
-  --radius:       5px;
-  --shadow-sm:    0 1px 4px rgba(0,0,0,0.08);
-  --shadow:       0 4px 24px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.06);
-}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
 
-body { background:var(--bg); color:var(--text); font-family:var(--font); font-size:13px; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --muted: #6b6b6b;
+      --line: #000000;
+      --active-fill: #f0f7ff;
+      --font-main: "Inter", sans-serif;
+      --line-width: 1px;
+      --gap: 4px; /* Écartement ajusté : moins petit qu'avant, fidèle à Problemata */
+    }
 
-/* ── Toolbar ── */
-#toolbar { height:var(--toolbar-h); min-height:var(--toolbar-h); background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:2px; padding:0 10px; user-select:none; }
-.view-switcher { display:flex; align-items:center; gap:1px; margin-right:4px; }
-.view-tab { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--radius); font-size:12.5px; color:var(--text2); cursor:pointer; border:1px solid transparent; background:none; font-family:var(--font); transition:background 0.1s,color 0.1s; }
-.view-tab:hover { background:var(--bg3); color:var(--text); }
-.view-tab.active { background:var(--bg); border-color:var(--border2); color:var(--text); box-shadow:var(--shadow-sm); }
-.view-tab svg { width:13px; height:13px; flex-shrink:0; }
-.add-view-btn { display:flex; align-items:center; gap:4px; padding:4px 8px; border-radius:var(--radius); font-size:12px; color:var(--text3); cursor:pointer; border:1px dashed var(--border2); background:none; font-family:var(--font); margin-left:2px; transition:all 0.1s; }
-.add-view-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-bg); }
-.add-view-btn svg { width:11px; height:11px; }
-#result-count { font-size:12px; color:var(--text3); margin-left:6px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.tb-divider { width:1px; height:18px; background:var(--border); margin:0 4px; flex-shrink:0; }
-.spacer { flex:1; }
-.tb-btn { display:flex; align-items:center; gap:5px; background:none; border:none; color:var(--text2); font-size:12px; padding:4px 8px; border-radius:var(--radius); cursor:pointer; font-family:var(--font); white-space:nowrap; transition:background 0.1s,color 0.1s; }
-.tb-btn:hover { background:var(--bg3); color:var(--text); }
-.tb-btn.active { background:var(--accent-bg); color:var(--accent); }
-.tb-btn svg { width:14px; height:14px; flex-shrink:0; }
-.tb-btn .badge { background:var(--accent); color:white; border-radius:100px; font-size:9px; padding:0 4px; min-width:14px; text-align:center; line-height:14px; }
-.search-wrap { position:relative; display:flex; align-items:center; }
-.search-wrap svg { position:absolute; left:7px; width:12px; height:12px; color:var(--text3); pointer-events:none; }
-#search-input { background:var(--bg); border:1px solid var(--border2); color:var(--text); border-radius:var(--radius); padding:4px 8px 4px 26px; font-size:12px; width:195px; font-family:var(--font); outline:none; transition:border-color 0.15s,width 0.2s; }
-#search-input:focus { border-color:var(--accent); width:230px; }
-#search-input::placeholder { color:var(--text3); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Dropdown panels ── */
-.panel-overlay { position:fixed; inset:0; z-index:50; display:none; }
-.panel-overlay.open { display:block; }
-.dropdown-panel { position:fixed; top:calc(var(--toolbar-h) + 5px); background:var(--bg); border:1px solid var(--border2); border-radius:8px; box-shadow:var(--shadow); z-index:100; min-width:280px; overflow:hidden; display:none; }
-.dropdown-panel.open { display:block; }
-.dp-sect { padding:10px 14px; border-bottom:1px solid var(--border); }
-.dp-sect:last-child { border-bottom:none; }
-.dp-sect-title { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
-.dp-select { background:var(--bg2); border:1px solid var(--border2); color:var(--text); border-radius:var(--radius); padding:4px 7px; font-size:12px; font-family:var(--font); outline:none; cursor:pointer; }
-.dp-select:focus { border-color:var(--accent); }
-.dp-inline-btn { background:none; border:1px solid var(--border2); border-radius:var(--radius); padding:3px 10px; font-size:11px; cursor:pointer; font-family:var(--font); color:var(--text2); transition:all 0.1s; }
-.dp-inline-btn:hover { background:var(--bg3); color:var(--text); }
-.dp-inline-btn.add { color:var(--link); border-color:rgba(59,91,219,0.3); }
-.dp-inline-btn.add:hover { background:rgba(59,91,219,0.06); }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-main);
+      font-size: 14px;
+      line-height: 1.4;
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
 
-/* Sort panel */
-#sort-panel { right:10px; min-width:320px; }
-.sort-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
-.sort-dir-btn { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:4px 10px; font-size:12px; cursor:pointer; font-family:var(--font); color:var(--text2); flex-shrink:0; transition:all 0.1s; }
-.sort-dir-btn:hover { background:var(--bg3); color:var(--text); }
-.group-rows { display:flex; flex-direction:column; gap:5px; margin-bottom:6px; }
-.group-row { display:flex; align-items:center; gap:6px; }
-.group-pill { display:inline-flex; align-items:center; gap:4px; background:var(--accent-bg); border:1px solid var(--border2); border-radius:100px; padding:2px 8px 2px 6px; font-size:11.5px; color:var(--accent); font-weight:500; }
-.group-pill-del { background:none; border:none; color:var(--text3); cursor:pointer; padding:0 2px; font-size:13px; line-height:1; }
-.group-pill-del:hover { color:var(--danger); }
-.group-add-row { display:flex; align-items:center; gap:6px; }
+    /* --- SIDEBAR --- */
+    aside {
+      width: 340px;
+      min-width: 340px;
+      padding: 30px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
 
-/* Filter panel */
-#filter-panel { right:10px; min-width:430px; }
-.date-filter-block { background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:10px; }
-.date-filter-title { font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
-.date-filter-title svg { width:13px; height:13px; color:var(--text2); }
-.date-mode-tabs { display:flex; gap:4px; margin-bottom:8px; }
-.date-mode-tab { background:none; border:1px solid var(--border2); border-radius:var(--radius); padding:3px 10px; font-size:11px; cursor:pointer; font-family:var(--font); color:var(--text2); transition:all 0.1s; }
-.date-mode-tab:hover { background:var(--bg3); }
-.date-mode-tab.active { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); font-weight:500; }
-.date-inputs { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.date-inputs label { font-size:11px; color:var(--text3); white-space:nowrap; }
-.date-inputs input[type="date"] { background:var(--bg); border:1px solid var(--border2); color:var(--text); border-radius:var(--radius); padding:4px 7px; font-size:12px; font-family:var(--font); outline:none; }
-.date-inputs input[type="date"]:focus { border-color:var(--accent); }
-.date-sep { color:var(--text3); font-size:12px; }
-.date-hint { font-size:11px; color:var(--text3); margin-left:4px; }
-.filter-condition-row { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:12px; color:var(--text2); }
-.condition-toggle { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:2px 8px; font-size:11px; cursor:pointer; font-family:var(--font); color:var(--text); }
-.filter-rule { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
-.f-label { font-size:11px; color:var(--text3); width:22px; flex-shrink:0; }
-.f-input { background:var(--bg2); border:1px solid var(--border2); color:var(--text); border-radius:var(--radius); padding:4px 7px; font-size:12px; font-family:var(--font); outline:none; }
-.f-input:focus { border-color:var(--accent); }
-.f-field { width:110px; }
-.f-op { width:88px; }
-.f-val { flex:1; }
-.f-del { background:none; border:none; color:var(--text3); cursor:pointer; padding:2px 4px; border-radius:3px; font-size:15px; line-height:1; }
-.f-del:hover { background:var(--bg3); color:var(--danger); }
-.dp-row-actions { display:flex; gap:8px; padding-top:6px; }
+    /* Ligne latérale disjointe */
+    aside::after {
+      content: ""; position: absolute; right: 0;
+      top: var(--gap); bottom: var(--gap);
+      width: var(--line-width); background: var(--line);
+    }
 
-/* Props panel */
-#props-panel { right:10px; min-width:240px; max-height:480px; overflow-y:auto; }
-#props-search-input { width:100%; background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:5px 8px; font-size:12px; font-family:var(--font); outline:none; color:var(--text); }
-#props-search-input:focus { border-color:var(--accent); }
-.prop-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
-.prop-row:last-child { border-bottom:none; }
-.prop-check { width:14px; height:14px; cursor:pointer; accent-color:var(--accent); flex-shrink:0; }
-.prop-icon { width:14px; height:14px; color:var(--text3); flex-shrink:0; }
-.prop-name { font-size:12px; color:var(--text); flex:1; }
-.prop-toggle-all { font-size:11px; color:var(--text3); cursor:pointer; background:none; border:none; font-family:var(--font); }
-.prop-toggle-all:hover { color:var(--link); text-decoration:underline; }
+    .hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 40px;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
 
-/* ── Table ── */
-#table-wrap { flex:1; overflow:auto; position:relative; }
-table { width:100%; border-collapse:collapse; table-layout:fixed; min-width:1450px; }
-col.c-nom      { width:148px; }
-col.c-prenom   { width:128px; }
-col.c-alias    { width:100px; }
-col.c-inst     { width:120px; }
-col.c-position { width:150px; }
-col.c-groupe   { width:180px; }
-col.c-debut    { width:80px; }
-col.c-fin      { width:80px; }
-col.c-nais     { width:80px; }
-col.c-deces    { width:80px; }
-col.c-wp       { width:42px; }
-col.c-wd       { width:42px; }
-col.c-senat    { width:44px; }
-col.c-syco     { width:50px; }
+    /* --- FILTRES (BOÎTES BLANCHES DISJOINTES) --- */
+    .filter-group { margin-bottom: 25px; position: relative; }
 
-thead tr { height:var(--header-h); background:var(--bg2); border-bottom:2px solid var(--border2); position:sticky; top:0; z-index:10; }
-th { padding:0 9px; text-align:left; font-weight:500; color:var(--text2); font-size:11px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-right:1px solid var(--border); user-select:none; letter-spacing:0.01em; }
-th:last-child { border-right:none; }
-th:hover { color:var(--text); background:var(--bg3); }
-th.sorted { color:var(--accent); }
-.th-inner { display:flex; align-items:center; gap:4px; }
-.th-icon { width:12px; height:12px; opacity:0.5; flex-shrink:0; }
-.sort-arrow { margin-left:auto; font-size:9px; opacity:0.8; color:var(--accent); }
-.th-link { text-align:center !important; padding:0 4px !important; }
-.th-link .th-inner { justify-content:center; }
+    .filter-box-wrapper {
+      display: flex;
+      align-items: center;
+      position: relative;
+      min-height: 42px;
+      background: #ffffff;
+    }
 
-tbody tr.group-header { background:var(--bg2); border-bottom:1px solid var(--border); height:26px; cursor:default; }
-tbody tr.group-header td { font-size:11px; font-weight:600; color:var(--text2); letter-spacing:0.04em; padding:0 10px; text-transform:uppercase; border-right:none; background:var(--bg2); }
-.group-count { color:var(--text3); font-weight:400; margin-left:6px; font-size:10px; text-transform:none; letter-spacing:0; }
+    /* FIX: Suppression du background noir qui remplissait la boîte */
+    .filter-box-wrapper::before, .filter-box-wrapper::after {
+      content: ""; position: absolute; pointer-events: none;
+    }
+    .filter-box-wrapper::before {
+      top: 0; bottom: 0; left: var(--gap); right: var(--gap);
+      border-top: var(--line-width) solid var(--line); border-bottom: var(--line-width) solid var(--line);
+    }
+    .filter-box-wrapper::after {
+      left: 0; right: 0; top: var(--gap); bottom: var(--gap);
+      border-left: var(--line-width) solid var(--line); border-right: var(--line-width) solid var(--line);
+    }
 
-tbody tr.data-row { border-bottom:1px solid var(--border); height:30px; cursor:default; transition:background 0.05s; }
-tbody tr.data-row:hover { background:rgba(0,0,0,0.02); }
-td { padding:0 9px; font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-right:1px solid var(--border); vertical-align:middle; }
-td:last-child { border-right:none; }
-td.cell-name a { color:var(--link); text-decoration:none; font-weight:500; }
-td.cell-name a:hover { text-decoration:underline; }
-.inst-chambre { color:var(--tag-chambre); font-weight:500; }
-.inst-senat   { color:var(--tag-senat);   font-weight:500; }
-.inst-gouv    { color:var(--tag-gouv);    font-weight:500; }
-td.cell-date  { color:var(--text2); font-family:var(--font-mono); font-size:11px; }
-td.cell-alias { color:var(--text3); font-size:11px; font-style:italic; }
-td.cell-link  { text-align:center; }
-td.cell-link a { display:inline-flex; align-items:center; justify-content:center; width:22px; height:20px; border-radius:4px; color:var(--text3); text-decoration:none; font-size:10px; font-weight:600; border:1px solid var(--border2); background:var(--bg2); transition:all 0.1s; }
-td.cell-link a:hover { color:var(--link); border-color:var(--link); background:rgba(59,91,219,0.06); }
-.col-hidden { display:none !important; }
+    .filter-box-wrapper.active { background-color: var(--active-fill); }
 
-::-webkit-scrollbar { width:6px; height:6px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
-::-webkit-scrollbar-thumb:hover { background:var(--text3); }
+    .filter-line {
+      flex: 1; border: none; padding: 12px; font-family: var(--font-main);
+      font-size: 13px; font-weight: 500; outline: none;
+      text-transform: uppercase; background: transparent; position: relative; z-index: 2;
+    }
 
-/* ── Pagination ── */
-#pagination { background:var(--bg2); border-top:1px solid var(--border); padding:5px 12px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text2); }
-.pg-btn { background:var(--bg); border:1px solid var(--border2); color:var(--text2); border-radius:var(--radius); padding:2px 8px; cursor:pointer; font-size:12px; font-family:var(--font); }
-.pg-btn:hover:not(:disabled) { background:var(--bg3); color:var(--text); }
-.pg-btn:disabled { opacity:0.3; cursor:default; }
+    .sort-btn {
+      background: none; border: none; padding: 0 10px; cursor: pointer; color: var(--muted);
+      height: 25px; display: flex; align-items: center; position: relative; z-index: 2;
+      border-left: var(--line-width) solid var(--line); margin-right: 6px;
+    }
 
-/* ── Detail panel ── */
-#detail-panel { display:none; position:fixed; top:0; right:0; bottom:0; width:390px; background:var(--bg); border-left:1px solid var(--border2); overflow-y:auto; z-index:200; flex-direction:column; box-shadow:-4px 0 24px rgba(0,0,0,0.09); }
-#detail-panel.open { display:flex; }
-#dp-close { position:absolute; top:10px; right:10px; background:none; border:none; color:var(--text3); cursor:pointer; padding:4px 6px; border-radius:var(--radius); font-size:14px; line-height:1; }
-#dp-close:hover { background:var(--bg3); color:var(--text); }
-#dp-header { padding:22px 20px 14px; border-bottom:1px solid var(--border); }
-#dp-name { font-size:17px; font-weight:600; margin-bottom:4px; }
-#dp-meta { font-size:12px; color:var(--text2); }
-#dp-props { padding:12px 20px; border-bottom:1px solid var(--border); }
-.dp-prop-item { display:flex; gap:10px; padding:4px 0; font-size:12px; align-items:baseline; }
-.dp-key { color:var(--text2); width:90px; flex-shrink:0; font-size:11px; }
-.dp-val { color:var(--text); word-break:break-all; }
-.dp-val a { color:var(--link); text-decoration:none; }
-.dp-val a:hover { text-decoration:underline; }
-#dp-mandates { padding:14px 20px; }
-#dp-mandates h3 { font-size:11px; font-weight:600; color:var(--text3); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.06em; }
-.mandate-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:9px 11px; margin-bottom:7px; }
-.mc-top { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
-.mc-inst { font-size:11px; font-weight:600; }
-.mc-name { font-size:12px; font-weight:500; color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.mc-dates { font-size:11px; color:var(--text2); font-family:var(--font-mono); }
-.mc-group { font-size:11px; color:var(--text3); margin-top:2px; }
-.mc-pos { font-size:11px; color:var(--text2); margin-top:1px; }
+    /* --- DATE PICKER --- */
+    .date-trigger-box {
+      cursor: pointer; font-size: 13px; color: var(--muted);
+      padding: 12px; flex: 1; text-transform: uppercase; position: relative; z-index: 2;
+    }
 
-/* ── View modal ── */
-#view-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.2); z-index:300; align-items:flex-start; justify-content:flex-start; padding-top:calc(var(--toolbar-h) + 5px); padding-left:10px; }
-#view-modal-overlay.open { display:flex; }
-#view-modal { background:var(--bg); border:1px solid var(--border2); border-radius:8px; box-shadow:var(--shadow); min-width:200px; overflow:hidden; }
-.view-option { display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; transition:background 0.1s; }
-.view-option:hover { background:var(--bg3); }
-.view-option.current { background:var(--accent-bg); }
-.view-option svg { width:14px; height:14px; color:var(--text2); }
-.view-option span { font-size:13px; }
-.vm-sep { height:1px; background:var(--border); }
-.vm-footer { padding:7px 14px; }
-.vm-footer button { background:none; border:none; font-size:12px; color:var(--text3); cursor:pointer; font-family:var(--font); }
-.vm-footer button:hover { color:var(--text); }
+    .wheel-overlay {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      background: #fff; border: var(--line-width) solid var(--line); z-index: 110; padding: 10px;
+    }
+    .wheel-overlay.active { display: block; }
 
-/* Loading / empty */
-#loading, #empty { display:none; position:absolute; top:80px; left:50%; transform:translateX(-50%); color:var(--text2); font-size:13px; }
-</style>
+    .ios-wheel-container {
+      display: flex; height: 120px; position: relative;
+      mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+    }
+    .wheel-highlight { position: absolute; top: 45px; height: 30px; width: 100%; pointer-events: none; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+    .ios-wheel { flex: 1; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; padding: 45px 0; }
+    .ios-wheel::-webkit-scrollbar { display: none; }
+    .wheel-item { height: 30px; line-height: 30px; text-align: center; scroll-snap-align: center; font-size: 13px; opacity: 0.4; }
+    .wheel-item.active { opacity: 1; font-weight: 700; }
+
+    .btn-reset-ghost {
+      background: none; border: none; color: var(--muted); padding: 10px 0;
+      font-family: var(--font-main); font-weight: 700; font-size: 11px;
+      text-transform: uppercase; cursor: pointer; text-align: left;
+    }
+    .btn-reset-ghost:hover { color: var(--text); }
+
+    /* --- RÉSULTATS --- */
+    main { flex: 1; min-width: 0; background: var(--bg); }
+
+    .person-row {
+      display: grid;
+      grid-template-columns: 220px 1fr 1.5fr;
+      position: relative;
+      height: 210px;
+      overflow: hidden;
+    }
+
+    /* Ligne horizontale disjointe */
+    .person-row::after {
+      content: ""; position: absolute; bottom: 0;
+      left: var(--gap); right: var(--gap);
+      height: var(--line-width); background: var(--line);
+    }
+
+    .person-row.expanded { height: auto; overflow: visible; }
+
+    .portrait-outer {
+        padding: 20px; position: relative; height: 210px;
+    }
+    /* Ligne verticale 1 disjointe */
+    .portrait-outer::after {
+      content: ""; position: absolute; right: 0;
+      top: var(--gap); bottom: var(--gap);
+      width: var(--line-width); background: var(--line);
+    }
+
+    .portrait-box {
+      width: 100%; height: 100%;
+      background-image: url('no_picture.jpg');
+      background-size: cover; background-position: center;
+      position: relative; overflow: hidden;
+    }
+    .portrait-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); }
+
+    .identity-box {
+      padding: 30px; position: relative;
+      display: flex; flex-direction: column; justify-content: flex-start;
+      height: 210px;
+    }
+    /* Ligne verticale 2 disjointe */
+    .identity-box::after {
+      content: ""; position: absolute; right: 0;
+      top: var(--gap); bottom: var(--gap);
+      width: var(--line-width); background: var(--line);
+    }
+
+    .identity-box .lastname {
+      font-size: 28px; font-weight: 700; text-transform: uppercase;
+      line-height: 1; margin-bottom: 12px; letter-spacing: -0.02em;
+    }
+
+    .links-box { display: flex; flex-wrap: wrap; gap: 12px; margin-top: auto; }
+    .links-box a {
+      text-decoration: none !important; color: var(--text); font-size: 10px; font-weight: 700;
+      text-transform: uppercase; display: flex; align-items: center; gap: 4px;
+    }
+
+    .mandates-box { padding: 30px; position: relative; }
+    .mandates-inner {
+        display: flex; flex-direction: column; justify-content: center;
+        height: 100%; gap: 25px;
+    }
+
+    .mandate-entry { font-size: 15px; line-height: 1.4; }
+    .mandate-entry b { font-weight: 700; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    .mandate-entry.hidden-mandate { display: none; }
+    .person-row.expanded .mandate-entry.hidden-mandate { display: block; }
+    .person-row.expanded .mandates-inner { justify-content: flex-start; }
+
+    /* --- BOUTON EXPAND DISJOINT --- */
+    .unfold-btn {
+      position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+      cursor: pointer; width: 28px; height: 28px; background: #ffffff;
+      display: flex; align-items: center; justify-content: center; z-index: 10;
+    }
+    .unfold-btn::before {
+        content: ""; position: absolute; top: 0; bottom: 0; left: var(--gap); right: var(--gap);
+        border-top: var(--line-width) solid var(--line); border-bottom: var(--line-width) solid var(--line);
+    }
+    .unfold-btn::after {
+        content: ""; position: absolute; left: 0; right: 0; top: var(--gap); bottom: var(--gap);
+        border-left: var(--line-width) solid var(--line); border-right: var(--line-width) solid var(--line);
+    }
+
+    .icon-svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 2.5; fill: none; transition: transform 0.3s; position: relative; z-index: 2; }
+    .person-row.expanded .unfold-btn svg { transform: rotate(90deg); }
+
+    .pagination { padding: 40px; display: flex; gap: 15px; }
+    .btn-page { background: none; border: var(--line-width) solid var(--line); padding: 8px 20px; cursor: pointer; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+
+    /* --- PERMALINK ROW HOVER --- */
+    .person-row { cursor: pointer; transition: background 0.15s; }
+    .person-row:hover { background: var(--active-fill); }
+
+    /* --- DETAIL OVERLAY --- */
+    #detail-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(255,255,255,0.96);
+      overflow-y: auto;
+    }
+    #detail-overlay.active { display: block; }
+
+    .detail-inner {
+      max-width: 900px; margin: 0 auto; padding: 60px 40px;
+    }
+
+    .detail-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 50px;
+    }
+    .detail-back {
+      background: none; border: none; cursor: pointer; font-family: var(--font-main);
+      font-weight: 700; font-size: 11px; text-transform: uppercase; display: flex;
+      align-items: center; gap: 6px;
+    }
+    .detail-permalink {
+      font-size: 11px; font-weight: 500; color: var(--muted); font-family: var(--font-main);
+      display: flex; align-items: center; gap: 6px; text-decoration: none;
+      text-transform: uppercase;
+    }
+    .detail-permalink:hover { color: var(--text); }
+    .copy-toast {
+      display: inline-block; font-size: 10px; font-weight: 700; color: var(--text);
+      text-transform: uppercase; opacity: 0; transition: opacity 0.3s;
+    }
+    .copy-toast.visible { opacity: 1; }
+
+    .detail-header { display: grid; grid-template-columns: 180px 1fr; gap: 0; margin-bottom: 50px; position: relative; }
+    .detail-header::after { content: ""; position: absolute; bottom: -25px; left: var(--gap); right: var(--gap); height: var(--line-width); background: var(--line); }
+
+    .detail-portrait {
+      width: 160px; height: 200px; background: #f5f5f5;
+      overflow: hidden; position: relative;
+    }
+    .detail-portrait::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--gap); right: var(--gap); border-top: var(--line-width) solid var(--line); border-bottom: var(--line-width) solid var(--line); pointer-events: none; z-index: 2; }
+    .detail-portrait::after { content: ""; position: absolute; left: 0; right: 0; top: var(--gap); bottom: var(--gap); border-left: var(--line-width) solid var(--line); border-right: var(--line-width) solid var(--line); pointer-events: none; z-index: 2; }
+    .detail-portrait img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); }
+
+    .detail-identity { padding-left: 40px; }
+    .detail-firstname { font-size: 14px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .detail-lastname { font-size: 48px; font-weight: 800; text-transform: uppercase; line-height: 1; letter-spacing: -0.03em; margin-bottom: 20px; }
+    .detail-meta { font-size: 13px; color: var(--muted); line-height: 1.8; }
+    .detail-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+    .detail-links a { text-decoration: none; color: var(--text); font-size: 10px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 4px; }
+
+    .detail-mandates { margin-top: 50px; }
+    .detail-mandates-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 20px; }
+    .detail-mandate-item {
+      display: grid; grid-template-columns: 200px 1fr;
+      padding: 18px 0; position: relative;
+    }
+    .detail-mandate-item::after { content: ""; position: absolute; bottom: 0; left: var(--gap); right: var(--gap); height: var(--line-width); background: var(--line); }
+    .detail-mandate-dates { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .detail-mandate-info { font-size: 14px; }
+    .detail-mandate-info b { display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; margin-bottom: 4px; }
+  </style>
 </head>
 <body>
 
-<!-- TOOLBAR -->
-<div id="toolbar">
-  <div class="view-switcher">
-    <button class="view-tab active">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 5.5h13M5.5 5.5v9"/></svg>
-      Mandats
-    </button>
-  </div>
-  <button class="add-view-btn" onclick="toggleViewModal()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
-    Ajouter une vue
-  </button>
-  <div class="tb-divider"></div>
-  <span id="result-count">—</span>
-  <div class="spacer"></div>
+  <aside>
+    <h1 class="hero-title">Retrouvez les parlementaires de la IIIe République</h1>
 
-  <!-- Trier: up-down with lines (Obsidian style) -->
-  <button class="tb-btn" id="btn-trier" onclick="togglePanel('sort-panel','btn-trier')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M4 2v12M2 12l2 2 2-2M8 4h6M8 7.5h5M8 11h4" stroke-linecap="round"/>
-    </svg>
-    Trier
-  </button>
-
-  <!-- Filtre: three horizontal lines narrowing -->
-  <button class="tb-btn" id="btn-filtre" onclick="togglePanel('filter-panel','btn-filtre')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M2 4h12M4 8h8M6.5 12h3" stroke-linecap="round"/>
-    </svg>
-    Filtre
-    <span class="badge" id="filter-badge" style="display:none">0</span>
-  </button>
-
-  <!-- Propriétés: checkbox list -->
-  <button class="tb-btn" id="btn-props" onclick="togglePanel('props-panel','btn-props')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-      <rect x="2" y="3" width="3" height="3" rx="0.5"/>
-      <rect x="2" y="7" width="3" height="3" rx="0.5"/>
-      <rect x="2" y="11" width="3" height="3" rx="0.5"/>
-      <path d="M7 4.5h7M7 8.5h7M7 12.5h7" stroke-linecap="round"/>
-    </svg>
-    Propriétés
-  </button>
-
-  <div class="tb-divider"></div>
-
-  <!-- Rechercher: magnifying glass -->
-  <button class="tb-btn" id="btn-search" onclick="toggleSearch()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-      <circle cx="6.5" cy="6.5" r="4"/>
-      <path d="M9.5 9.5l3 3" stroke-linecap="round"/>
-    </svg>
-    Rechercher
-  </button>
-  <div class="search-wrap" id="search-wrap" style="display:none; margin-left:4px;">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4"/><path d="M9.5 9.5l3 3" stroke-linecap="round"/></svg>
-    <input id="search-input" type="text" placeholder="Saisir pour lancer la recherche…" autocomplete="off">
-  </div>
-</div>
-
-<!-- SORT PANEL -->
-<div class="panel-overlay" id="overlay-sort-panel" onclick="closePanel('sort-panel','btn-trier')"></div>
-<div class="dropdown-panel" id="sort-panel">
-  <div class="dp-sect">
-    <div class="dp-sect-title">Grouper par</div>
-    <div id="group-rows" class="group-rows"></div>
-    <div class="group-add-row">
-      <select class="dp-select" id="group-field-sel" style="flex:1">
-        <option value="">Propriété…</option>
-        <option value="inst">Institution</option>
-        <option value="group">Groupe politique</option>
-        <option value="position">Département / poste</option>
-        <option value="birth_decade">Décennie de naissance</option>
-      </select>
-      <select class="dp-select" id="group-dir-sel"><option value="asc">A → Z</option><option value="desc">Z → A</option></select>
-      <button class="dp-inline-btn add" onclick="addGroupBy()">Ajouter</button>
-    </div>
-  </div>
-  <div class="dp-sect">
-    <div class="dp-sect-title">Trier par</div>
-    <div class="sort-row">
-      <select class="dp-select" id="sort-field" onchange="applySort()" style="flex:1">
-        <option value="last_name">Nom</option>
-        <option value="first_name">Prénom</option>
-        <option value="mandate_start_date">Début du mandat</option>
-        <option value="mandate_end_date">Fin du mandat</option>
-        <option value="birth_date">Date de naissance</option>
-      </select>
-      <button class="sort-dir-btn" id="sort-dir-btn" onclick="toggleSortDir()">A → Z</button>
-    </div>
-  </div>
-</div>
-
-<!-- FILTER PANEL -->
-<div class="panel-overlay" id="overlay-filter-panel" onclick="closePanel('filter-panel','btn-filtre')"></div>
-<div class="dropdown-panel" id="filter-panel">
-  <div class="dp-sect">
-    <!-- PRIMARY DATE FILTER -->
-    <div class="date-filter-block">
-      <div class="date-filter-title">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 8h12"/></svg>
-        Filtre par date de mandat
-      </div>
-      <div class="date-mode-tabs">
-        <button class="date-mode-tab active" id="dmode-between" onclick="setDateMode('between')">Entre deux dates</button>
-        <button class="date-mode-tab" id="dmode-on" onclick="setDateMode('on')">À une date précise</button>
-        <button class="date-mode-tab" id="dmode-none" onclick="setDateMode('none')">Aucun</button>
-      </div>
-      <div id="date-between" class="date-inputs">
-        <label>Du</label>
-        <input type="date" id="date-from" onchange="applyFilters()">
-        <span class="date-sep">au</span>
-        <input type="date" id="date-to" onchange="applyFilters()">
-      </div>
-      <div id="date-on" class="date-inputs" style="display:none">
-        <label>Le</label>
-        <input type="date" id="date-exact" onchange="applyFilters()">
-        <span class="date-hint">Mandats actifs à cette date</span>
+    <div class="filter-group">
+      <div class="filter-box-wrapper" id="box-last">
+        <input type="text" class="filter-line" id="f-last" placeholder="NOM">
+        <button class="sort-btn" id="sort-last" data-sort="last_name">
+          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
       </div>
     </div>
 
-    <div class="filter-condition-row">
-      Toutes les conditions suivantes sont vraies
-      <button class="condition-toggle">◇</button>
+    <div class="filter-group">
+      <div class="filter-box-wrapper" id="box-first">
+        <input type="text" class="filter-line" id="f-first" placeholder="PRÉNOM">
+        <button class="sort-btn" id="sort-first" data-sort="first_name">
+          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
     </div>
 
-    <div class="filter-rule">
-      <span class="f-label">où</span>
-      <select class="f-input f-field"><option>institution</option></select>
-      <select class="f-input f-op"><option>est</option></select>
-      <select class="f-input f-val" id="filter-inst" onchange="applyFilters()">
-        <option value="">Aucune valeur</option>
-        <option value="chambre">Chambre des députés</option>
-        <option value="senat">Sénat</option>
-        <option value="gouvernement">Gouvernement</option>
-      </select>
-      <button class="f-del" onclick="resetSelect('filter-inst')">×</button>
+    <div class="filter-group">
+      <div class="filter-box-wrapper" id="box-regime">
+        <input type="text" class="filter-line" id="f-regime" placeholder="RÉGIME POLITIQUE">
+      </div>
     </div>
-    <div class="filter-rule">
-      <span class="f-label">où</span>
-      <select class="f-input f-field"><option>groupe</option></select>
-      <select class="f-input f-op"><option>contient</option></select>
-      <input type="text" class="f-input f-val" id="filter-group" placeholder="ex: radical…" oninput="debounceFilters()">
-      <button class="f-del" onclick="resetText('filter-group')">×</button>
+
+    <div class="filter-group">
+      <div class="filter-box-wrapper" id="box-pos">
+        <input type="text" class="filter-line" id="f-pos" placeholder="POSITION">
+      </div>
     </div>
-    <div class="filter-rule">
-      <span class="f-label">où</span>
-      <select class="f-input f-field"><option>département</option></select>
-      <select class="f-input f-op"><option>contient</option></select>
-      <input type="text" class="f-input f-val" id="filter-dept" placeholder="ex: Seine…" oninput="debounceFilters()">
-      <button class="f-del" onclick="resetText('filter-dept')">×</button>
+
+    <div class="filter-group">
+      <div class="filter-box-wrapper" id="box-date">
+        <div class="date-trigger-box" id="date-trigger">en exercice le <span id="date-display">--</span></div>
+        <div class="wheel-overlay" id="date-overlay">
+          <div class="date-picker-ui" style="display:flex; gap:5px; height:100px; overflow:hidden;">
+            <select id="f-day" class="date-select" style="flex:1; border:none;"></select>
+            <select id="f-month" class="date-select" style="flex:1; border:none;"></select>
+            <select id="f-year" class="date-select" style="flex:1; border:none;"></select>
+          </div>
+          <button class="btn-page" id="close-date" style="width:100%; border:none; border-top:1px solid black; margin-top:10px;">Valider</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="btn-reset" class="btn-reset-ghost">réinitialiser les filtres</button>
+  </aside>
+
+  <main>
+    <section id="results"></section>
+    <div class="pagination">
+      <button id="prev-btn" class="btn-page">Précédent</button>
+      <button id="next-btn" class="btn-page">Suivant</button>
+    </div>
+  </main>
+
+  <!-- DETAIL OVERLAY -->
+  <div id="detail-overlay">
+    <div class="detail-inner">
+      <div class="detail-nav">
+        <button class="detail-back" id="detail-back">
+          <svg style="width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Retour à la liste
+        </button>
+        <span>
+          <a class="detail-permalink" id="detail-permalink-btn" href="#">
+            <svg style="width:10px;height:10px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            Copier le lien permanent
+          </a>
+          <span class="copy-toast" id="copy-toast">✓ Copié</span>
+        </span>
+      </div>
+      <div id="detail-content">
+        <div style="padding: 80px; text-align:center; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;">Chargement…</div>
+      </div>
     </div>
   </div>
-  <div class="dp-sect">
-    <div class="dp-row-actions">
-      <button class="dp-inline-btn add">+ Ajouter un filtre</button>
-      <button class="dp-inline-btn add">+ Ajouter un groupe de filtres</button>
-    </div>
-  </div>
-</div>
 
-<!-- PROPERTIES PANEL -->
-<div class="panel-overlay" id="overlay-props-panel" onclick="closePanel('props-panel','btn-props')"></div>
-<div class="dropdown-panel" id="props-panel">
-  <div class="dp-sect" style="padding-bottom:8px">
-    <input id="props-search-input" type="text" placeholder="Rechercher ou créer…" oninput="filterProps()">
-  </div>
-  <div class="dp-sect" id="props-list"></div>
-  <div class="dp-sect" style="display:flex; gap:10px; padding-top:8px">
-    <button class="prop-toggle-all" onclick="toggleAllProps(true)">Tout afficher</button>
-    <span style="color:var(--border2)">·</span>
-    <button class="prop-toggle-all" onclick="toggleAllProps(false)">Tout masquer</button>
-  </div>
-</div>
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const state = {
+      filters: { last_name: '', first_name: '', legislature_name: '', position: '', start_from: '' },
+      sortBy: 'last_name', sortDir: 'asc', limit: 20, offset: 0
+    };
 
-<!-- TABLE -->
-<div id="table-wrap">
-  <div id="loading">Chargement…</div>
-  <div id="empty">Aucun résultat.</div>
-  <table id="main-table">
-    <colgroup>
-      <col class="c-nom">
-      <col class="c-prenom" id="col-prenom">
-      <col class="c-alias"  id="col-alias">
-      <col class="c-inst"   id="col-inst">
-      <col class="c-position" id="col-position">
-      <col class="c-groupe" id="col-groupe">
-      <col class="c-debut"  id="col-debut">
-      <col class="c-fin"    id="col-fin">
-      <col class="c-nais"   id="col-nais">
-      <col class="c-deces"  id="col-deces">
-      <col class="c-wp"     id="col-wp">
-      <col class="c-wd"     id="col-wd">
-      <col class="c-senat"  id="col-senat">
-      <col class="c-syco"   id="col-syco">
-    </colgroup>
-    <thead><tr>
-      <!-- Nom — person icon -->
-      <th onclick="setSort('last_name')">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-          Nom <span class="sort-arrow" id="sa-last_name"></span>
-        </div>
-      </th>
-      <!-- Prénom — person icon -->
-      <th onclick="setSort('first_name')" id="th-prenom">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-          Prénom <span class="sort-arrow" id="sa-first_name"></span>
-        </div>
-      </th>
-      <!-- Alias — text icon -->
-      <th id="th-alias">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7" stroke-linecap="round"/></svg>
-          Alias
-        </div>
-      </th>
-      <!-- Institution — mandate / scroll icon -->
-      <th id="th-inst">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M5 6h6M5 9h4"/></svg>
-          Institution
-        </div>
-      </th>
-      <!-- Dép/poste — star/map icon -->
-      <th id="th-position">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 4.5H14l-3.7 2.7 1.4 4.3L8 11l-3.7 2.5 1.4-4.3L2 6.5h4.5z"/></svg>
-          Dép. / poste
-        </div>
-      </th>
-      <!-- Groupe — people icon -->
-      <th id="th-groupe">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="6" r="2.5"/><circle cx="10.5" cy="6" r="2.5"/><path d="M1 14c0-2.5 2-4 4.5-4M15 14c0-2.5-2-4-4.5-4"/></svg>
-          Groupe politique
-        </div>
-      </th>
-      <!-- Début — hemicycle arc (législature inspired) -->
-      <th onclick="setSort('mandate_start_date')" id="th-debut">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
-            <path d="M2 13.5 A6 6 0 0 1 14 13.5" stroke-linecap="round"/>
-            <path d="M4.5 13.5 A3.5 3.5 0 0 1 11.5 13.5" stroke-linecap="round"/>
-            <line x1="8" y1="5" x2="8" y2="10" stroke-linecap="round"/>
-            <circle cx="8" cy="13.5" r="0.8" fill="currentColor" stroke="none"/>
-          </svg>
-          Début <span class="sort-arrow" id="sa-mandate_start_date"></span>
-        </div>
-      </th>
-      <!-- Fin — hemicycle arc -->
-      <th onclick="setSort('mandate_end_date')" id="th-fin">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3">
-            <path d="M2 13.5 A6 6 0 0 1 14 13.5" stroke-linecap="round"/>
-            <path d="M4.5 13.5 A3.5 3.5 0 0 1 11.5 13.5" stroke-linecap="round"/>
-            <line x1="8" y1="5" x2="8" y2="10" stroke-linecap="round"/>
-            <circle cx="8" cy="13.5" r="0.8" fill="currentColor" stroke="none"/>
-          </svg>
-          Fin <span class="sort-arrow" id="sa-mandate_end_date"></span>
-        </div>
-      </th>
-      <!-- Naissance — calendar icon -->
-      <th onclick="setSort('birth_date')" id="th-nais">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 8h12"/></svg>
-          Naissance <span class="sort-arrow" id="sa-birth_date"></span>
-        </div>
-      </th>
-      <!-- Décès — calendar icon -->
-      <th onclick="setSort('death_date')" id="th-deces">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 8h12"/></svg>
-          Décès <span class="sort-arrow" id="sa-death_date"></span>
-        </div>
-      </th>
-      <!-- Link columns — single icon per column -->
-      <th class="th-link" id="th-wp" title="Wikipedia">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="8" rx="3" ry="6"/><path d="M2.5 6h11M2.5 10h11"/></svg>
-          W
-        </div>
-      </th>
-      <th class="th-link" id="th-wd" title="Wikidata">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="1.5" height="10"/><rect x="4.5" y="3" width="1" height="10"/><rect x="7" y="3" width="1.5" height="10"/><rect x="9.5" y="3" width="1" height="10"/><rect x="11.5" y="3" width="1.5" height="10"/></svg>
-          D
-        </div>
-      </th>
-      <th class="th-link" id="th-senat" title="Sénat">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 13.5 A6 6 0 0 1 14 13.5"/><path d="M4.5 13.5 A3.5 3.5 0 0 1 11.5 13.5"/><line x1="8" y1="7" x2="8" y2="11" stroke-linecap="round"/></svg>
-          S
-        </div>
-      </th>
-      <th class="th-link" id="th-syco" title="Sycomore">
-        <div class="th-inner">
-          <svg class="th-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4M5 12h2"/></svg>
-          AN
-        </div>
-      </th>
-    </tr></thead>
-    <tbody id="tbody"></tbody>
-  </table>
-</div>
+    const SVG_LINK = `<svg style="width:10px;height:10px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>`;
+    const SVG_ARROW = `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
 
-<!-- PAGINATION -->
-<div id="pagination">
-  <button class="pg-btn" id="btn-prev" onclick="changePage(-1)" disabled>← Préc.</button>
-  <span id="pg-info">—</span>
-  <button class="pg-btn" id="btn-next" onclick="changePage(1)">Suiv. →</button>
-  <div style="flex:1"></div>
-  <span id="pg-total" style="color:var(--text3)"></span>
-</div>
+    async function load() {
+      const params = new URLSearchParams();
+      Object.entries(state.filters).forEach(([k, v]) => {
+        if (v) params.append(k, v);
 
-<!-- DETAIL PANEL -->
-<div id="detail-panel">
-  <button id="dp-close" onclick="closeDetail()">✕</button>
-  <div id="dp-header"><div id="dp-name"></div><div id="dp-meta"></div></div>
-  <div id="dp-props"></div>
-  <div id="dp-mandates"><h3>Mandats</h3><div id="dp-mandate-list"></div></div>
-</div>
+        // Gestion de la classe active sans erreur
+        let boxId = '';
+        if (k === 'legislature_name') boxId = 'box-regime';
+        else if (k === 'position') boxId = 'box-pos';
+        else if (k === 'start_from') boxId = 'box-date';
+        else boxId = 'box-' + k.split('_')[0];
 
-<!-- VIEW MODAL -->
-<div id="view-modal-overlay" onclick="closeViewModal()">
-  <div id="view-modal" onclick="event.stopPropagation()">
-    <div class="view-option current">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><path d="M1.5 5.5h13M5.5 5.5v9"/></svg>
-      <span>Tableau</span>
-    </div>
-    <div class="view-option">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
-      <span>Vue</span>
-    </div>
-    <div class="vm-sep"></div>
-    <div class="vm-footer"><button onclick="closeViewModal()">Fermer</button></div>
-  </div>
-</div>
-
-<script>
-const API = window.location.origin;
-const PAGE_SIZE = 50;
-let currentPage = 0;
-let totalRows = 0;
-let sortField = 'last_name';
-let sortDir = 'asc';
-let debounceTimer = null;
-let searchVisible = false;
-let dateMode = 'between';
-let groupBys = [];
-
-const COLUMNS = [
-  { key:'prenom',   label:'Prénom',           thId:'th-prenom',   colId:'col-prenom',   visible:true },
-  { key:'alias',    label:'Alias',             thId:'th-alias',    colId:'col-alias',    visible:true },
-  { key:'inst',     label:'Institution',       thId:'th-inst',     colId:'col-inst',     visible:true },
-  { key:'position', label:'Département/poste', thId:'th-position', colId:'col-position', visible:true },
-  { key:'groupe',   label:'Groupe politique',  thId:'th-groupe',   colId:'col-groupe',   visible:true },
-  { key:'debut',    label:'Début',             thId:'th-debut',    colId:'col-debut',    visible:true },
-  { key:'fin',      label:'Fin',               thId:'th-fin',      colId:'col-fin',      visible:true },
-  { key:'nais',     label:'Naissance',         thId:'th-nais',     colId:'col-nais',     visible:true },
-  { key:'deces',    label:'Décès',             thId:'th-deces',    colId:'col-deces',    visible:true },
-  { key:'wp',       label:'Wikipedia',         thId:'th-wp',       colId:'col-wp',       visible:true },
-  { key:'wd',       label:'Wikidata',          thId:'th-wd',       colId:'col-wd',       visible:true },
-  { key:'senat',    label:'Sénat',             thId:'th-senat',    colId:'col-senat',    visible:true },
-  { key:'syco',     label:'Sycomore (AN)',      thId:'th-syco',     colId:'col-syco',     visible:true },
-];
-
-/* Props panel */
-function buildPropsPanel() {
-  document.getElementById('props-list').innerHTML = COLUMNS.map(c => `
-    <div class="prop-row" data-key="${c.key}">
-      <input type="checkbox" class="prop-check" id="prop-${c.key}" ${c.visible?'checked':''} onchange="toggleColumn('${c.key}',this.checked)">
-      <svg class="prop-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h5" stroke-linecap="round"/></svg>
-      <span class="prop-name">${c.label}</span>
-    </div>`).join('');
-}
-function filterProps() {
-  const q = (document.getElementById('props-search-input').value||'').toLowerCase();
-  document.querySelectorAll('#props-list .prop-row').forEach(row => {
-    const c = COLUMNS.find(x => x.key === row.dataset.key);
-    row.style.display = (!q || c.label.toLowerCase().includes(q)) ? '' : 'none';
-  });
-}
-function toggleColumn(key, visible) {
-  const c = COLUMNS.find(x => x.key === key);
-  if (c) { c.visible = visible; applyColVis(); }
-}
-function applyColVis() {
-  COLUMNS.forEach(c => {
-    const hide = !c.visible;
-    const th = document.getElementById(c.thId);
-    if (th) th.classList.toggle('col-hidden', hide);
-    const col = document.getElementById(c.colId);
-    if (col) col.style.display = hide ? 'none' : '';
-    document.querySelectorAll(`td[data-col="${c.key}"]`).forEach(td => td.classList.toggle('col-hidden', hide));
-  });
-}
-function toggleAllProps(val) {
-  COLUMNS.forEach(c => { c.visible = val; const cb = document.getElementById('prop-'+c.key); if(cb) cb.checked = val; });
-  applyColVis();
-}
-
-/* Panels */
-const PANELS = ['sort-panel','filter-panel','props-panel'];
-const PANEL_BTNS = {'sort-panel':'btn-trier','filter-panel':'btn-filtre','props-panel':'btn-props'};
-function togglePanel(id, btnId) {
-  const isOpen = document.getElementById(id).classList.contains('open');
-  PANELS.forEach(p => { document.getElementById(p).classList.remove('open'); document.getElementById('overlay-'+p).classList.remove('open'); });
-  document.querySelectorAll('.tb-btn').forEach(b => { if(b.id!=='btn-filtre') b.classList.remove('active'); });
-  updateFilterBadge();
-  if (!isOpen) {
-    document.getElementById(id).classList.add('open');
-    document.getElementById('overlay-'+id).classList.add('open');
-    document.getElementById(btnId).classList.add('active');
-  }
-}
-function closePanel(id, btnId) {
-  document.getElementById(id).classList.remove('open');
-  document.getElementById('overlay-'+id).classList.remove('open');
-  if (btnId) document.getElementById(btnId).classList.remove('active');
-  updateFilterBadge();
-}
-
-/* Search */
-function toggleSearch() {
-  searchVisible = !searchVisible;
-  document.getElementById('search-wrap').style.display = searchVisible ? 'flex' : 'none';
-  document.getElementById('btn-search').classList.toggle('active', searchVisible);
-  if (searchVisible) document.getElementById('search-input').focus();
-  else { document.getElementById('search-input').value=''; currentPage=0; loadData(); }
-}
-
-/* View modal */
-function toggleViewModal() { document.getElementById('view-modal-overlay').classList.toggle('open'); }
-function closeViewModal()  { document.getElementById('view-modal-overlay').classList.remove('open'); }
-
-/* Sort */
-function setSort(field) {
-  if (sortField===field) sortDir = sortDir==='asc'?'desc':'asc';
-  else { sortField=field; sortDir='asc'; }
-  updateSortUI();
-  loadData();
-}
-function applySort() { sortField = document.getElementById('sort-field').value; updateSortUI(); loadData(); }
-function toggleSortDir() { sortDir = sortDir==='asc'?'desc':'asc'; updateSortUI(); loadData(); }
-function updateSortUI() {
-  ['last_name','first_name','mandate_start_date','mandate_end_date','birth_date','death_date'].forEach(f => { const el=document.getElementById('sa-'+f); if(el) el.textContent=''; });
-  const a = document.getElementById('sa-'+sortField); if(a) a.textContent = sortDir==='asc'?' ↑':' ↓';
-  document.getElementById('sort-dir-btn').textContent = sortDir==='asc'?'A → Z':'Z → A';
-  const sf = document.getElementById('sort-field'); if(sf) sf.value = sortField;
-}
-
-/* Group-by */
-const GROUP_LABELS = { inst:'Institution', group:'Groupe politique', position:'Département / poste', birth_decade:'Décennie de naissance' };
-function addGroupBy() {
-  const field = document.getElementById('group-field-sel').value;
-  const dir   = document.getElementById('group-dir-sel').value;
-  if (!field || groupBys.find(g=>g.field===field)) return;
-  groupBys.push({field,dir});
-  renderGroupPills();
-  document.getElementById('group-field-sel').value='';
-  loadData();
-}
-function removeGroupBy(field) { groupBys=groupBys.filter(g=>g.field!==field); renderGroupPills(); loadData(); }
-function renderGroupPills() {
-  document.getElementById('group-rows').innerHTML = groupBys.map(g=>`
-    <div class="group-row">
-      <div class="group-pill">${GROUP_LABELS[g.field]||g.field} <button class="group-pill-del" onclick="removeGroupBy('${g.field}')">×</button></div>
-      <span style="font-size:11px;color:var(--text3)">${g.dir==='asc'?'A→Z':'Z→A'}</span>
-    </div>`).join('');
-}
-
-/* Group key extraction */
-function getGroupKey(person, mandate, field) {
-  switch(field) {
-    case 'inst':     return instLabel(mandate?mandate.institution:'') || '—';
-    case 'group':    return (mandate&&mandate.group) ? mandate.group : '—';
-    case 'position': return (mandate&&mandate.position) ? mandate.position : '—';
-    case 'birth_decade':
-      if (!person.birth_date) return '—';
-      const yr = parseInt(person.birth_date.slice(0,4));
-      return `${Math.floor(yr/10)*10}s`;
-    default: return '—';
-  }
-}
-
-/* Date mode */
-function setDateMode(mode) {
-  dateMode = mode;
-  document.querySelectorAll('.date-mode-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('dmode-'+mode).classList.add('active');
-  document.getElementById('date-between').style.display = mode==='between'?'flex':'none';
-  document.getElementById('date-on').style.display      = mode==='on'?'flex':'none';
-  applyFilters();
-}
-
-/* Filters */
-function debounceFilters() { clearTimeout(debounceTimer); debounceTimer=setTimeout(applyFilters,350); }
-function applyFilters() { currentPage=0; updateFilterBadge(); loadData(); }
-function resetSelect(id) { document.getElementById(id).value=''; applyFilters(); }
-function resetText(id)   { document.getElementById(id).value=''; applyFilters(); }
-function updateFilterBadge() {
-  const inst  = document.getElementById('filter-inst').value;
-  const group = document.getElementById('filter-group').value.trim();
-  const dept  = document.getElementById('filter-dept').value.trim();
-  const df    = document.getElementById('date-from').value;
-  const dt    = document.getElementById('date-to').value;
-  const de    = document.getElementById('date-exact').value;
-  let n = [inst,group,dept].filter(Boolean).length;
-  if (dateMode==='between'&&(df||dt)) n++;
-  if (dateMode==='on'&&de) n++;
-  const badge = document.getElementById('filter-badge');
-  badge.textContent=n; badge.style.display=n>0?'inline-block':'none';
-  const fpOpen = document.getElementById('filter-panel').classList.contains('open');
-  document.getElementById('btn-filtre').classList.toggle('active', n>0||fpOpen);
-}
-
-function changePage(delta) { currentPage+=delta; loadData(); }
-
-/* Helpers */
-function instClass(inst) {
-  if (!inst) return ''; const i=inst.toLowerCase();
-  if (i.includes('chambre')) return 'inst-chambre';
-  if (i.includes('senat'))   return 'inst-senat';
-  if (i.includes('gouv'))    return 'inst-gouv';
-  return '';
-}
-function instLabel(inst) {
-  if (!inst) return ''; const i=inst.toLowerCase();
-  if (i.includes('chambre'))      return 'Chambre des députés';
-  if (i.includes('senat'))        return 'Sénat';
-  if (i.includes('gouvernement')) return 'Gouvernement';
-  return inst;
-}
-function fmtDate(d) { return d?d.slice(0,10):''; }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-/* Load */
-async function loadData() {
-  document.getElementById('loading').style.display='block';
-  document.getElementById('empty').style.display='none';
-  document.getElementById('tbody').innerHTML='';
-
-  const name  = document.getElementById('search-input').value.trim();
-  const inst  = document.getElementById('filter-inst').value;
-  const group = document.getElementById('filter-group').value.trim();
-  const dept  = document.getElementById('filter-dept').value.trim();
-  const df    = document.getElementById('date-from').value;
-  const dt    = document.getElementById('date-to').value;
-  const de    = document.getElementById('date-exact').value;
-  const offset= currentPage*PAGE_SIZE;
-
-  const params = new URLSearchParams({limit:PAGE_SIZE,offset,sort:sortField,dir:sortDir});
-  if (name)  params.set('last_name',name);
-  if (inst)  params.set('institution',inst);
-  if (group) params.set('group',group);
-  if (dept)  params.set('department',dept);
-  if (dateMode==='between') { if(df) params.set('date_from',df); if(dt) params.set('date_to',dt); }
-  if (dateMode==='on'&&de)  params.set('date_on',de);
-
-  try {
-    const personsRes = await fetch(`${API}/persons?${params}`);
-    const persons = await personsRes.json();
-    document.getElementById('loading').style.display='none';
-
-    if (!persons.length) {
-      document.getElementById('empty').style.display='block';
-      document.getElementById('result-count').textContent='0 résultats';
-      updatePagination(0); return;
-    }
-
-    const details = await Promise.all(
-      persons.map(p => fetch(`${API}/persons/${p.person_id}`).then(r=>r.json()).catch(()=>p))
-    );
-
-    // Build flat rows
-    let rows = [];
-    for (const p of details) {
-      let mandates = p.mandates || [];
-      if (inst)  mandates = mandates.filter(m=>m.institution&&m.institution.toLowerCase().includes(inst));
-      if (group) mandates = mandates.filter(m=>m.group&&m.group.toLowerCase().includes(group.toLowerCase()));
-      if (dept)  mandates = mandates.filter(m=>m.position&&m.position.toLowerCase().includes(dept.toLowerCase()));
-      if (dateMode==='between'&&(df||dt)) {
-        mandates = mandates.filter(m=>{
-          const s=m.start_date?m.start_date.slice(0,10):null;
-          const e=m.end_date?m.end_date.slice(0,10):null;
-          if (df&&e&&e<df) return false;
-          if (dt&&s&&s>dt) return false;
-          return true;
-        });
-      } else if (dateMode==='on'&&de) {
-        mandates = mandates.filter(m=>{
-          const s=m.start_date?m.start_date.slice(0,10):null;
-          const e=m.end_date?m.end_date.slice(0,10):'9999-99-99';
-          return (!s||s<=de)&&(!e||e>=de);
-        });
-      }
-      if (!mandates.length) { if (!inst&&!group&&!dept&&dateMode==='none') rows.push({p,m:null}); }
-      else mandates.forEach(m=>rows.push({p,m}));
-    }
-
-    // Group-by sort
-    if (groupBys.length) {
-      const g0 = groupBys[0];
-      rows.sort((a,b)=>{
-        const ka=getGroupKey(a.p,a.m,g0.field), kb=getGroupKey(b.p,b.m,g0.field);
-        const cmp=ka.localeCompare(kb,'fr');
-        return g0.dir==='asc'?cmp:-cmp;
-      });
-    }
-
-    // Total: try count endpoint, fallback estimate
-    let total = rows.length + offset;
-    try {
-      const cp=new URLSearchParams({last_name:name||'',institution:inst||'',group:group||'',department:dept||''});
-      if(dateMode==='between'){if(df)cp.set('date_from',df);if(dt)cp.set('date_to',dt);}
-      if(dateMode==='on'&&de)cp.set('date_on',de);
-      const cr=await fetch(`${API}/persons/count?${cp}`);
-      if(cr.ok){const cd=await cr.json(); if(cd.total_rows!==undefined)total=cd.total_rows; else if(cd.count!==undefined)total=cd.count;}
-    } catch(_){}
-    totalRows=total;
-    document.getElementById('result-count').textContent=`${totalRows} résultat${totalRows!==1?'s':''}`;
-    updatePagination(totalRows);
-
-    // Render
-    const tbody=document.getElementById('tbody');
-    if (!groupBys.length) {
-      rows.forEach(r=>appendRow(tbody,r.p,r.m));
-    } else {
-      const g0=groupBys[0];
-      const counts={};
-      rows.forEach(r=>{ const k=getGroupKey(r.p,r.m,g0.field); counts[k]=(counts[k]||0)+1; });
-      let curGroup=null;
-      rows.forEach(r=>{
-        const gk=getGroupKey(r.p,r.m,g0.field);
-        if (gk!==curGroup) {
-          curGroup=gk;
-          const htr=document.createElement('tr');
-          htr.className='group-header';
-          const totalCols=1+COLUMNS.length;
-          htr.innerHTML=`<td colspan="${totalCols}">${esc(gk)} <span class="group-count">${counts[gk]} résultat${counts[gk]!==1?'s':''}</span></td>`;
-          tbody.appendChild(htr);
+        const box = document.getElementById(boxId);
+        if (box) {
+          if (v) box.classList.add('active');
+          else box.classList.remove('active');
         }
-        appendRow(tbody,r.p,r.m);
+      });
+
+      params.append('sort_by', state.sortBy);
+      params.append('sort_dir', state.sortDir);
+      params.append('limit', state.limit);
+      params.append('offset', state.offset);
+
+      try {
+        const res = await fetch(`${API_BASE}/persons/grouped-mandates?${params}`);
+        if (!res.ok) throw new Error("API Error");
+        const data = await res.json();
+        render(data.items || []);
+
+        document.getElementById('prev-btn').disabled = state.offset === 0;
+        document.getElementById('next-btn').disabled = (state.offset + state.limit) >= (data.total_groups || 0);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function render(items) {
+      const container = document.getElementById('results');
+      container.innerHTML = items.map(item => {
+        const p = item.person;
+        return `
+          <div class="person-row" id="row-${p.person_id}" onclick="openDetail('${p.person_id}', event)">
+            <div class="portrait-outer">
+                <div class="portrait-box" id="img-${p.person_id}"></div>
+            </div>
+            <div class="identity-box">
+              <div class="firstname">${p.first_name || ''}</div>
+              <div class="lastname">${p.last_name}</div>
+              <div class="bio">Né le ${formatDate(p.birth_date)}<br>Mort le ${formatDate(p.death_date)}</div>
+              <div class="links-box">
+                ${p.wikipedia_url ? `<a href="${p.wikipedia_url}" target="_blank">Wikipedia ${SVG_LINK}</a>` : ''}
+                ${p.wikidata_qid ? `<a href="https://www.wikidata.org/wiki/${p.wikidata_qid}" target="_blank">Wikidata ${SVG_LINK}</a>` : ''}
+                ${p.sycomore_id ? `<a href="https://www2.assemblee-nationale.fr/sycomore/fiche/(num_dept)/${p.sycomore_id}" target="_blank">A.N. ${SVG_LINK}</a>` : ''}
+              </div>
+            </div>
+            <div class="mandates-box">
+              <div class="mandates-inner">
+                ${item.mandates.map((m, index) => {
+                  const inst = (m.institution || '').toLowerCase();
+                  let role = inst.includes('senat') ? `sénateur du ${m.position}` : inst.includes('chambre') ? `député du ${m.position}` : m.position;
+                  return `<div class="mandate-entry ${index >= 2 ? 'hidden-mandate' : ''}">
+                    <b>Régime politique : ${m.legislature_name}</b>
+                    Position : ${role}<br>
+                    En exercice du ${formatDate(m.start_date)} jusqu'au ${formatDate(m.end_date)}
+                  </div>`;
+                }).join('')}
+              </div>
+              ${item.mandates.length > 2 ? `<div class="unfold-btn" onclick="toggleExpand('${p.person_id}')">${SVG_ARROW}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      items.forEach(async item => {
+        const url = await getWikiImg(item.person.wikidata_qid);
+        const box = document.getElementById(`img-${item.person.person_id}`);
+        if(url && box) box.innerHTML = `<img src="${url}">`;
       });
     }
-    applyColVis();
-  } catch(e) {
-    document.getElementById('loading').style.display='none';
-    document.getElementById('empty').textContent='Erreur : API inaccessible. Vérifiez que uvicorn tourne sur le port 8000.';
-    document.getElementById('empty').style.display='block';
-    console.error(e);
-  }
-}
 
-function appendRow(tbody, p, m) {
-  const tr=document.createElement('tr'); tr.className='data-row';
-  const inst=m?m.institution:''; const cls=instClass(inst);
-  const cv={}; COLUMNS.forEach(c=>{cv[c.key]=c.visible;});
-  tr.innerHTML=`
-    <td class="cell-name"><a href="#" onclick="openDetail('${esc(p.person_id)}');return false;">${esc(p.last_name||'')}</a></td>
-    <td data-col="prenom"  ${cv.prenom   ?'':' class="col-hidden"'}>${esc(p.first_name||'')}</td>
-    <td data-col="alias"   ${cv.alias    ?'':' class="col-hidden"'} class="cell-alias">${esc(p.alias||'')}</td>
-    <td data-col="inst"    ${cv.inst     ?'':' class="col-hidden"'}><span class="${cls}">${esc(instLabel(inst))}</span></td>
-    <td data-col="position"${cv.position ?'':' class="col-hidden"'} title="${esc(m?m.position||'':'')}">${esc(m?m.position||'':'')}</td>
-    <td data-col="groupe"  ${cv.groupe   ?'':' class="col-hidden"'}>${esc(m&&m.group?m.group:'')}</td>
-    <td data-col="debut"   ${cv.debut    ?'':' class="col-hidden"'} class="cell-date">${fmtDate(m?m.start_date:'')}</td>
-    <td data-col="fin"     ${cv.fin      ?'':' class="col-hidden"'} class="cell-date">${fmtDate(m?m.end_date:'')}</td>
-    <td data-col="nais"    ${cv.nais     ?'':' class="col-hidden"'} class="cell-date">${fmtDate(p.birth_date)}</td>
-    <td data-col="deces"   ${cv.deces    ?'':' class="col-hidden"'} class="cell-date">${fmtDate(p.death_date)}</td>
-    <td data-col="wp"      ${cv.wp       ?'':' class="col-hidden"'} class="cell-link">${p.wikipedia_url?`<a href="${esc(p.wikipedia_url)}" target="_blank" title="Wikipedia">W</a>`:''}</td>
-    <td data-col="wd"      ${cv.wd       ?'':' class="col-hidden"'} class="cell-link">${p.wikidata_qid?`<a href="https://www.wikidata.org/wiki/${esc(p.wikidata_qid)}" target="_blank" title="Wikidata">D</a>`:''}</td>
-    <td data-col="senat"   ${cv.senat    ?'':' class="col-hidden"'} class="cell-link">${p.senat_id?`<a href="https://www.senat.fr/senateur/${esc(p.senat_id)}.html" target="_blank" title="Sénat">S</a>`:''}</td>
-    <td data-col="syco"    ${cv.syco     ?'':' class="col-hidden"'} class="cell-link">${p.sycomore_id?`<a href="https://www.assemblee-nationale.fr/sycomore/fiche.asp?num_dept=${esc(p.sycomore_id)}" target="_blank" title="Sycomore (AN)">AN</a>`:''}</td>
-  `;
-  tr.addEventListener('click',e=>{ if(!e.target.closest('a')) openDetail(p.person_id); });
-  tbody.appendChild(tr);
-}
+    async function getWikiImg(qid) {
+      if(!qid) return null;
+      try {
+        const r = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetclaims&property=P18&entity=${qid}&format=json&origin=*`);
+        const d = await r.json();
+        const f = d.claims.P18[0].mainsnak.datavalue.value.replace(/ /g, '_');
+        return `https://commons.wikimedia.org/wiki/Special:FilePath/${f}?width=300`;
+      } catch(e) { return null; }
+    }
 
-function updatePagination(total) {
-  const start=currentPage*PAGE_SIZE+1, end=Math.min((currentPage+1)*PAGE_SIZE,total);
-  document.getElementById('pg-info').textContent  = total>0?`${start}–${end}`:'—';
-  document.getElementById('pg-total').textContent = total>0?`sur ${total} lignes`:'';
-  document.getElementById('btn-prev').disabled = currentPage===0;
-  document.getElementById('btn-next').disabled = end>=total;
-}
+    function formatDate(s) { return s ? new Date(s).toLocaleDateString('fr-FR', {day:'numeric', month:'short', year:'numeric'}) : 'indisponible'; }
+    window.toggleExpand = (id) => document.getElementById(`row-${id}`).classList.toggle('expanded');
 
-/* Detail panel */
-async function openDetail(personId) {
-  const panel=document.getElementById('detail-panel'); panel.classList.add('open');
-  document.getElementById('dp-name').textContent='…';
-  document.getElementById('dp-meta').textContent='';
-  document.getElementById('dp-props').innerHTML='';
-  document.getElementById('dp-mandate-list').innerHTML='<span style="color:var(--text3);font-size:12px">Chargement…</span>';
-  try {
-    const data=await fetch(`${API}/persons/${personId}`).then(r=>r.json());
-    document.getElementById('dp-name').textContent=`${data.last_name}${data.first_name?', '+data.first_name:''}`;
-    const born=data.birth_date?data.birth_date.slice(0,10):'?';
-    const died=data.death_date?data.death_date.slice(0,10):'';
-    document.getElementById('dp-meta').textContent=`${born}${died?' – '+died:''}`;
-    const rows=[
-      ['ID',        data.person_id],
-      ['Alias',     data.alias||''],
-      ['Naissance', born!=='?'?born:''],
-      ['Décès',     died||''],
-      ['Wikidata',  data.wikidata_qid?`<a href="https://www.wikidata.org/wiki/${esc(data.wikidata_qid)}" target="_blank">${esc(data.wikidata_qid)}</a>`:''],
-      ['Wikipedia', data.wikipedia_url?`<a href="${esc(data.wikipedia_url)}" target="_blank">→ article</a>`:''],
-      ['Sénat',     data.senat_id?`<a href="https://www.senat.fr/senateur/${esc(data.senat_id)}.html" target="_blank">${esc(data.senat_id)}</a>`:''],
-      ['Sycomore',  data.sycomore_id?`<a href="https://www.assemblee-nationale.fr/sycomore/fiche.asp?num_dept=${esc(data.sycomore_id)}" target="_blank">${esc(data.sycomore_id)}</a>`:''],
-    ];
-    document.getElementById('dp-props').innerHTML=rows.filter(r=>r[1]).map(r=>
-      `<div class="dp-prop-item"><span class="dp-key">${r[0]}</span><span class="dp-val">${r[1]}</span></div>`).join('');
-    const mandates=data.mandates||[];
-    const ml=document.getElementById('dp-mandate-list');
-    ml.innerHTML=!mandates.length?'<span style="color:var(--text3);font-size:12px">Aucun mandat.</span>':
-      mandates.map(m=>`<div class="mandate-card">
-        <div class="mc-top"><span class="mc-inst ${instClass(m.institution)}">${esc(instLabel(m.institution))}</span>
-        <span class="mc-name" title="${esc(m.mandature_name||'')}">${esc(m.mandature_name||'')}</span></div>
-        ${m.position?`<div class="mc-pos">${esc(m.position)}</div>`:''}
-        ${m.group?`<div class="mc-group">${esc(m.group)}</div>`:''}
-        <div class="mc-dates">${fmtDate(m.start_date)}${m.end_date?' → '+fmtDate(m.end_date):''}</div>
-      </div>`).join('');
-  } catch(e) { document.getElementById('dp-mandate-list').innerHTML='<span style="color:var(--danger);font-size:12px">Erreur de chargement.</span>'; }
-}
-function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); }
+    /* --- BINDINGS RESTAURÉS --- */
+    document.getElementById('date-trigger').addEventListener('click', () => {
+        document.getElementById('date-overlay').classList.toggle('active');
+    });
 
-/* Events */
-document.getElementById('search-input').addEventListener('input', ()=>{
-  clearTimeout(debounceTimer); debounceTimer=setTimeout(()=>{currentPage=0;loadData();},400);
-});
-document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){
-    closeDetail(); closeViewModal();
-    PANELS.forEach(id=>closePanel(id,PANEL_BTNS[id]));
-    updateFilterBadge();
-  }
-});
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const target = e.currentTarget;
+            const key = target.dataset.sort;
+            const icon = target.querySelector('svg');
 
-buildPropsPanel();
-loadData();
-</script>
+            if (state.sortBy === key) {
+              state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+              state.sortBy = key;
+              state.sortDir = 'asc';
+            }
+
+            document.querySelectorAll('.sort-btn svg').forEach(s => s.style.transform = 'rotate(0deg)');
+            document.querySelectorAll('.sort-btn').forEach(s => s.classList.remove('active'));
+
+            target.classList.add('active');
+            icon.style.transform = state.sortDir === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)';
+
+            state.offset = 0;
+            load();
+        });
+    });
+
+    ['f-last', 'f-first', 'f-regime', 'f-pos'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            const key = id.replace('f-', '').replace('last','last_name').replace('first','first_name').replace('regime','legislature_name').replace('pos','position');
+            state.filters[key] = e.target.value;
+            state.offset = 0;
+            load();
+        });
+    });
+
+    document.getElementById('close-date').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const d = document.getElementById('f-day').value;
+        const m = document.getElementById('f-month').value;
+        const y = document.getElementById('f-year').value;
+        if(y && m && d) {
+            document.getElementById('date-display').textContent = `${d}/${m}/${y}`;
+            state.filters.start_from = `${y}-${m}-${d}`;
+        } else {
+            document.getElementById('date-display').textContent = '--';
+            state.filters.start_from = '';
+        }
+        document.getElementById('date-overlay').classList.remove('active');
+        state.offset = 0;
+        load();
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => location.reload());
+
+    document.getElementById('prev-btn').addEventListener('click', () => {
+        state.offset -= state.limit;
+        load();
+        window.scrollTo(0,0);
+    });
+
+    document.getElementById('next-btn').addEventListener('click', () => {
+        state.offset += state.limit;
+        load();
+        window.scrollTo(0,0);
+    });
+
+    // Populate date selects and init
+    const daySelect = document.getElementById('f-day');
+    for(let i=1; i<=31; i++) { let val = i < 10 ? '0'+i : i; daySelect.innerHTML += `<option value="${val}">${val}</option>`; }
+    const monthSelect = document.getElementById('f-month');
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    months.forEach((m, i) => { let val = (i+1) < 10 ? '0'+(i+1) : (i+1); monthSelect.innerHTML += `<option value="${val}">${m}</option>`; });
+    const yearSelect = document.getElementById('f-year');
+    for(let i=1940; i>=1870; i--) { yearSelect.innerHTML += `<option value="${i}">${i}</option>`; }
+
+    load();
+
+    /* ── PERMALINK & DETAIL VIEW ─────────────────────────────────────────── */
+
+    async function openDetail(personId, event) {
+      // Don't open detail if clicking an <a> link inside the row
+      if (event && event.target.closest('a')) return;
+
+      window.location.hash = personId;
+      showDetail(personId);
+    }
+
+    async function showDetail(personId) {
+      const overlay = document.getElementById('detail-overlay');
+      const content = document.getElementById('detail-content');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      content.innerHTML = '<div style="padding:80px;text-align:center;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:0.1em;">Chargement…</div>';
+
+      // Set permalink button
+      const permalinkBtn = document.getElementById('detail-permalink-btn');
+      const permalinkUrl = `${location.origin}${location.pathname}#${personId}`;
+      permalinkBtn.href = permalinkUrl;
+      permalinkBtn.onclick = (e) => {
+        e.preventDefault();
+        navigator.clipboard.writeText(permalinkUrl).then(() => {
+          const toast = document.getElementById('copy-toast');
+          toast.classList.add('visible');
+          setTimeout(() => toast.classList.remove('visible'), 2000);
+        });
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/persons/${personId}`);
+        if (!res.ok) throw new Error("Not found");
+        const p = await res.json();
+        const imgUrl = await getWikiImg(p.wikidata_qid);
+
+        const inst = (m) => {
+          const i = (m.institution || '').toLowerCase();
+          return i.includes('senat') ? `Sénateur — ${m.position || ''}` : i.includes('chambre') ? `Député — ${m.position || ''}` : m.position || m.institution;
+        };
+
+        content.innerHTML = `
+          <div class="detail-header">
+            <div class="detail-portrait">
+              ${imgUrl ? `<img src="${imgUrl}">` : ''}
+            </div>
+            <div class="detail-identity">
+              <div class="detail-firstname">${p.first_name || ''}</div>
+              <div class="detail-lastname">${p.last_name}</div>
+              <div class="detail-meta">
+                ${p.birth_date ? `Né le ${formatDate(p.birth_date)}` : ''}
+                ${p.death_date ? `&nbsp;·&nbsp; Mort le ${formatDate(p.death_date)}` : ''}
+                ${p.alias ? `<br>Alias : ${p.alias}` : ''}
+              </div>
+              <div class="detail-links">
+                ${p.wikipedia_url ? `<a href="${p.wikipedia_url}" target="_blank">Wikipedia ${SVG_LINK}</a>` : ''}
+                ${p.wikidata_qid ? `<a href="https://www.wikidata.org/wiki/${p.wikidata_qid}" target="_blank">Wikidata ${SVG_LINK}</a>` : ''}
+                ${p.sycomore_id ? `<a href="https://www2.assemblee-nationale.fr/sycomore/fiche/(num_dept)/${p.sycomore_id}" target="_blank">A.N. ${SVG_LINK}</a>` : ''}
+                ${p.senat_id ? `<a href="https://www.senat.fr/senateur/${p.senat_id}" target="_blank">Sénat ${SVG_LINK}</a>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="detail-mandates">
+            <div class="detail-mandates-title">${(p.mandates || []).length} mandat${(p.mandates || []).length > 1 ? 's' : ''}</div>
+            ${(p.mandates || []).map(m => `
+              <div class="detail-mandate-item">
+                <div class="detail-mandate-dates">
+                  ${formatDate(m.start_date)}<br>→ ${formatDate(m.end_date)}
+                </div>
+                <div class="detail-mandate-info">
+                  <b>${m.legislature_name}</b>
+                  ${inst(m)}
+                  ${m.group ? `<br><span style="color:var(--muted);font-size:12px">Groupe : ${m.group}</span>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>`;
+      } catch(e) {
+        content.innerHTML = '<div style="padding:80px;text-align:center;color:var(--muted);">Personne introuvable.</div>';
+      }
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-overlay').classList.remove('active');
+      document.body.style.overflow = '';
+      history.pushState('', document.title, window.location.pathname + window.location.search);
+    }
+
+    document.getElementById('detail-back').addEventListener('click', closeDetail);
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDetail();
+    });
+
+    // On page load, check hash for direct permalink
+    if (window.location.hash) {
+      const personId = window.location.hash.slice(1);
+      if (personId) showDetail(personId);
+    }
+  </script>
 </body>
 </html>
