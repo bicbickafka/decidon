@@ -75,7 +75,7 @@ def run_migration():
 
     # Note: On s'assure d'utiliser le bon chemin relatif basé sur l'exécution du script
     df = pd.read_csv(tsv_path, sep="\t")
-
+    print(df.head())
     for _, row in df.iterrows():
         d = clean_row_data(row)
 
