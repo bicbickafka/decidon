@@ -6,6 +6,9 @@ Entry point for the FastAPI application.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import api_router
+from app.api_meta import METADATA
+from fastapi.openapi.utils import get_openapi
+
 
 
 def create_app() -> FastAPI:
@@ -15,9 +18,15 @@ def create_app() -> FastAPI:
     :rtype: FastAPI
     """
     _app = FastAPI(
-        title="Référentiel des parlementaires et membres du gouvernement sous la IIIe République",
-        description="Documentation de l'API",
-        version="0.1.0",
+        title=METADATA["title"],
+        description=METADATA["description"],
+        version=METADATA["version"],
+        openapi_url=METADATA["openapi_url"],
+        docs_url=METADATA["docs_url"],
+        redoc_url=METADATA["redoc_url"],
+        license_info=METADATA.get("license_info"),
+        openapi_tags=METADATA.get("openapi_tags"),
+        swagger_ui_parameters=METADATA.get("swagger_ui_parameters"),
     )
 
     _app.add_middleware(
@@ -34,3 +43,21 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
+print(">>> MAIN FILE EXECUTED")
+print(">>> TITLE:", METADATA["title"])

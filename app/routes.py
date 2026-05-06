@@ -9,6 +9,7 @@ from datetime import date as DateType
 from app.database import get_db
 from app import crud, schemas
 
+
 api_router = APIRouter()
 
 
@@ -21,7 +22,7 @@ async def read_index():
 
 # ── 1. Search persons ─────────────────────────────────────────────────────────
 
-@api_router.get("/persons", response_model=list[schemas.PersonOut])
+@api_router.get("/persons",tags=["persons"], summary="Retrieve all persons, with optional filters.", response_model=list[schemas.PersonOut])
 def search_persons(
     last_name: str | None = Query(None),
     first_name: str | None = Query(None),
@@ -40,7 +41,9 @@ def search_persons(
 # ── 2. Search persons with grouped mandates ───────────────────────────────────
 # Must be BEFORE /persons/{person_id} to avoid being swallowed by it
 
-@api_router.get("/persons/grouped-mandates", response_model=schemas.PersonMandateGroupSearchResponse)
+@api_router.get("/persons/grouped-mandates",
+                tags=["persons"], summary="Retrieve persons with their grouped mandates",
+                response_model=schemas.PersonMandateGroupSearchResponse)
 def search_grouped_mandates(
     first_name: str | None = Query(None),
     last_name: str | None = Query(None),
@@ -76,7 +79,9 @@ def search_grouped_mandates(
 # ── 3. Get persons by role at date ────────────────────────────────────────────
 # Must be BEFORE /persons/{person_id} to avoid being swallowed by it
 
-@api_router.get("/persons/by-role")
+@api_router.get("/persons/by-role",
+                tags=["persons mandates"],
+                summary="Retrieve persons holding a position at a given date.")
 def get_by_role(
     position: str = Query(...),
     date: DateType = Query(...),
@@ -87,7 +92,9 @@ def get_by_role(
 
 # ── 4. Get one person (permalink) ─────────────────────────────────────────────
 
-@api_router.get("/persons/{person_id}", response_model=schemas.PersonDetailOut)
+@api_router.get("/persons/{person_id}", tags=["persons"],
+                summary="Retrieve a person by their person_id.",
+                response_model=schemas.PersonDetailOut)
 def get_person(person_id: str, db: Session = Depends(get_db)):
     result = crud.get_person_by_id(db, person_id)
     if not result:
@@ -97,7 +104,10 @@ def get_person(person_id: str, db: Session = Depends(get_db)):
 
 # ── 5. List all legislatures ──────────────────────────────────────────────────
 
-@api_router.get("/legislatures", response_model=list[schemas.LegislatureOut])
+@api_router.get("/legislatures",
+                tags=["legislatures"],
+                summary="Retrieve all legislatures, with optional filters.",
+                response_model=list[schemas.LegislatureOut])
 def list_legislatures(
     institution: str | None = Query(None),
     name: str | None = Query(None),
@@ -110,6 +120,8 @@ def list_legislatures(
 
 @api_router.get(
     "/legislatures/{legislature_id}/members",
+    tags=["legislatures"],
+    summary="Retrieve all legislature members, with optional filters.",
     response_model=list[schemas.PersonOut],
 )
 def get_members(legislature_id: str, db: Session = Depends(get_db)):
@@ -118,7 +130,10 @@ def get_members(legislature_id: str, db: Session = Depends(get_db)):
 
 # ── 7. Fuzzy name lookup ──────────────────────────────────────────────────────
 
-@api_router.get("/lookup", response_model=list[schemas.PersonOut])
+@api_router.get("/lookup",
+                tags=["utils"],
+                summary="Fuzzy name lookup.",
+                response_model=list[schemas.PersonOut])
 def lookup(
     q: str = Query(...),
     limit: int = Query(10, le=50),
