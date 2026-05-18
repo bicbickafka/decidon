@@ -60,7 +60,17 @@ def clean_row_data(row):
     raw_position = data.get('mandate_position')
     cleaned['position'] = str(raw_position).strip() if not pd.isna(raw_position) and str(
         raw_position).strip() != "" else "inconnu"
-
+    leg_id = data.get('legislature_id', '') or ''
+    if leg_id.startswith('senat'):
+        cleaned['position_label'] = 'Sénateur'
+        cleaned['position_place'] = cleaned['position']
+    elif leg_id.startswith('chambre'):
+        cleaned['position_label'] = 'Député'
+        cleaned['position_place'] = cleaned['position']
+    else:
+        # Gouvernement : position contient l'intitulé du poste
+        cleaned['position_label'] = cleaned['position']
+        cleaned['position_place'] = None
     return cleaned
 
 
@@ -113,6 +123,8 @@ def run_migration():
             person_id=person.person_id,
             legislature_id=leg.legislature_id,
             position=d['position'],
+            position_label=d['position_label'],
+            position_place=d['position_place'],
             group=d['group'],
             start_date=d['start_date'],
             end_date=d['end_date']
