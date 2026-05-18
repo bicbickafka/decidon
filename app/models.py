@@ -125,7 +125,6 @@ class Person(AbstractBase, PersonEnrich,Base):
     """Parlementaires et membres du gouvernement."""
     __tablename__ = "persons"
     __prefix__ = "PER"
-
     person_id: Mapped[str]             = mapped_column(String, primary_key=True)
     last_name: Mapped[str]             = mapped_column(String, nullable=False, index=True)
     first_name: Mapped[str]            = mapped_column(String, nullable=False)
@@ -133,7 +132,8 @@ class Person(AbstractBase, PersonEnrich,Base):
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     death_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
-    mandates: Mapped[list["Mandate"]]  = relationship(back_populates="person")
+    mandates: Mapped[list["Mandate"]]  = relationship(back_populates="person",
+                                                      cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Person {self.person_id} | {self.last_name}, {self.first_name}>"
@@ -148,7 +148,7 @@ class Legislature(AbstractBase, AbstractDate, WikiEnrich,Base):
     institution: Mapped[InstitutionType] = mapped_column(Enum(InstitutionType), nullable=False)
     name: Mapped[str]                    = mapped_column(String, nullable=False)
 
-    mandates: Mapped[list["Mandate"]]    = relationship(back_populates="legislature")
+    mandates: Mapped[list["Mandate"]]    = relationship(back_populates="legislature", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<Legislature {self.legislature_id} | {self.institution.value} — {self.name}>"
@@ -164,7 +164,8 @@ class Mandate(AbstractBase, AbstractDate,Base):
     legislature_id: Mapped[str]        = mapped_column(ForeignKey("legislatures.legislature_id"), nullable=False)
     position: Mapped[Optional[str]]    = mapped_column(String, nullable=True)
     group: Mapped[Optional[str]]       = mapped_column(String, nullable=True)
-
+    position_label: Mapped[Optional[str]] = mapped_column(String,nullable=True)
+    position_place: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     person: Mapped["Person"]           = relationship(back_populates="mandates")
     legislature: Mapped["Legislature"] = relationship(back_populates="mandates")
 

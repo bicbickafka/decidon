@@ -58,6 +58,3 @@ def custom_openapi():
     return app.openapi_schema
 
 app.openapi = custom_openapi
-
-print(">>> MAIN FILE EXECUTED")
-print(">>> TITLE:", METADATA["title"])
