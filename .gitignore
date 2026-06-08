@@ -1,13 +1,28 @@
-.venv/
-venv
+# Virtual environments
+venv/
+../.venv/
+
+# Database files
+*.db
+
+# Data & scraping
+data_scraping/
+db/data/
+
+# Python cache
 __pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
 .idea/
-restart.ps1
+.vscode/
 
-db/data
+# OS files
+.DS_Store
+Thumbs.db
+
+# Specific files (quote paths with spaces)
+"app/VT tests"
 db/run_migration.py
-db/schema_decidon_prosopography.png
 db/tests-cascade.py
-data_scraping
-
-

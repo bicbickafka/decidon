@@ -64,7 +64,7 @@ This table stores all parliamentary debate sessions from 1881 to 1940.
 | `pagination_last` | `INTEGER` | Last page. |
 
 ### Table `is_related_to_session`
-This table links session speakers or mentioned persons to entries in the `persons` table.
+This table links persons to sessions and stores some metadata.
 
 | Field | Type | Description |
 |---|---|---|

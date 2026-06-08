@@ -1,0 +1,31 @@
+Sample: python3 index.py   --json "2026-05-28-1903-11-27-GT-SPK.json"   --session-date 1903-11-27   --verbose
+
+
+Cas 1: Erreur d'OCR 
+
+'Svveton' au lieu de 'Syveton'
+'Pierre Boisson' au lieu de 'Pierre Poisson'
+'Paul Bertrand (Margel.' au lieu de 'Paul Bertrand (Marne).'
+ "le directeur de l'enseignement se-\\ncondaire,"
+  "le directeur de l'enseignement supé-\\nrieur,"
+
+
+Cas 2 : Aucun résultat even though it exists in our db
+
+'Laroche-Joubert' => person_decidon_p5S2LK0X
+'de Saint-Martin (Indre).' => person_decidon_DbyJzEdH
+
+Cas 3 : homonymes
+
+'Petitjean'
+
+
+Cas 4 : role not in db
+
+'le commissaire du Gouvernement.'
+ "le directeur de l'enseignement se-\\ncondaire,"
+  "le directeur de l'enseignement supé-\\nrieur,"
+
+Cas 5 : function is not explicit/specific + no name 
+
+'le ministre'
