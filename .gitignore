@@ -1,5 +1,13 @@
 .venv/
+venv
 __pycache__/
 .idea/
-db/data/prosopography.db
 restart.ps1
+
+db/data
+db/run_migration.py
+db/schema_decidon_prosopography.png
+db/tests-cascade.py
+data_scraping
+
+
