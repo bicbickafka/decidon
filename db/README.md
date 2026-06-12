@@ -4,7 +4,7 @@
 This SQLite database stores prosopographical data about senators, deputies, and ministers under the French Third Republic (1870–1940). It supports named entity linking for mentions extracted from the official report of parliamentary debates (*Journal officiel*).
 
 ## Schema
-![schema_decidon_prosopography.png](schema_decidon_prosopography.png)
+![db_schema.png](db_schema.png)
 ### Table `persons`
 This table stores senators, deputies, and ministers, and may be expanded to include other prominent figures who appeared in parliamentary debates.
 

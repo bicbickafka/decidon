@@ -2,18 +2,20 @@
 schemas.py
 Pydantic schemas — API serialization layer.
 """
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, Any
 from datetime import date
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.models import InstitutionType
 
 
-class LegislatureOut(BaseModel):
-    legislature_id: str
+class MandateEntityOut(BaseModel):
+    mandate_id: str
     institution: InstitutionType
     name: str
-    start_date: date
-    end_date: date
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     wikidata_qid: Optional[str] = None
     wikipedia_url: Optional[str] = None
 
@@ -21,12 +23,11 @@ class LegislatureOut(BaseModel):
 
 
 class MandateOut(BaseModel):
-    legislature_id: str
+    mandate_id: str
     institution: str
-    legislature_name: str
+    mandate_name: str
     position: Optional[str] = None
     role: Optional[str] = None
-    constituency: Optional[str] = None
     group: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -50,7 +51,7 @@ class PersonOut(BaseModel):
 
 
 class PersonDetailOut(PersonOut):
-    mandates: list[MandateOut] = []
+    mandates: list[MandateOut] = Field(default_factory=list)
 
 
 class PersonMandateGroupOut(BaseModel):
@@ -68,15 +69,14 @@ class PersonMandateGroupSearchResponse(BaseModel):
 
 
 class MandateRowOut(BaseModel):
-    mandate_id: int
+    mandate_id: str
     person_id: str
     last_name: str
     first_name: str
     alias: Optional[str] = None
     position: Optional[str] = None
-    constituency: Optional[str] = None
-    legislature_id: str
-    legislature_name: str
+    role: Optional[str] = None
+    mandate_name: str
     institution: str
     group: Optional[str] = None
     start_date: Optional[date] = None
@@ -90,6 +90,29 @@ class MandateSearchResponse(BaseModel):
     limit: int
     offset: int
     items: list[MandateRowOut]
+
+
+class SessionOut(BaseModel):
+    session_id: str
+    institution: str
+    ark: Optional[str] = None
+    date: Optional[date] = None
+    source: Optional[str] = None
+    pagination_first: Optional[int] = None
+    pagination_last: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SessionLinkOut(BaseModel):
+    id: int
+    session_id: str
+    person_id: str
+    role: Optional[str] = None
+    link_method: Optional[str] = None
+    confidence_score: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ParsedMentionOut(BaseModel):
@@ -124,11 +147,9 @@ class MatchCandidateOut(BaseModel):
     last_name: Optional[str] = None
     alias: Optional[str] = None
     mandate_id: Optional[str] = None
-    legislature_id: Optional[str] = None
-    legislature_name: Optional[str] = None
+    mandate_name: Optional[str] = None
     position: Optional[str] = None
     role: Optional[str] = None
-    constituency: Optional[str] = None
     active_from: Optional[date] = None
     active_until: Optional[date] = None
     score_components: MatchScoreComponentsOut

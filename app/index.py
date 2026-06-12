@@ -12,9 +12,10 @@ Features:
 - BM25F scoring
 - Optional AND/OR query mode
 - Fallback strategy:
-  1. Main query according to bool_type (AND by default)
-  2. Token-by-token fallback
-  3. OR fallback
+  1. Exact match
+  2. Main query according to bool_type (AND by default)
+  3. Token-by-token fallback
+  4. OR fallback
 - Partial dates supported:
   - None
   - 1901
@@ -27,6 +28,18 @@ Features:
 - LRU cache for parsed queries and active date filters
 - Single query test mode
 - Batch JSON simulation mode
+
+Batch JSON format expected:
+{
+  "session_id": "...",
+  "session_date": "1903-11-28",
+  "occurrences": [
+    {
+      "source_id": "...",
+      "str_ref": "Paul Doumer"
+    }
+  ]
+}
 """
 
 from __future__ import annotations
@@ -42,17 +55,15 @@ import warnings
 
 from datetime import date, datetime, time
 from functools import lru_cache
-from itertools import groupby
 from pathlib import Path
 from typing import Any, Optional
 
-from sqlalchemy import create_engine, text, true
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from stopwordsiso import stopwords
-from whoosh import index, scoring
+from whoosh import index, query as whoosh_query, scoring, sorting
 from whoosh.fields import DATETIME, ID, Schema, TEXT
 from whoosh.qparser import AndGroup, MultifieldParser, OrGroup
-from whoosh import sorting
 
 # A virer à terme permet juste de supprimer les warnings de la dépendance whoosh
 warnings.filterwarnings(
@@ -89,33 +100,35 @@ SessionLocal = sessionmaker(
 def db_session():
     return SessionLocal()
 
+
 def normalize(value: Optional[str]) -> str:
     if not value:
         return ""
 
     value = value.replace("’", "'").replace("`", "'")
     value = value.replace("-", " ")
-    value = re.sub(r"[()\\[\\]{},;:!?]", " ", value)
+    value = re.sub(r"[()\[\]{},;:!?]", " ", value)
     value = re.sub(r"[.,;:]+$", "", value.strip())
     value = unicodedata.normalize("NFD", value).encode("ascii", "ignore").decode("utf-8")
     value = re.sub(r"\s+", " ", value)
 
     return value.lower().strip()
 
-"""legacy
-def normalize(value: Optional[str]) -> str:
-    ""Return a normalized string suitable for indexing and searching.""
-    if not value:
-        return ""
 
-    value = value.replace("’", "'").replace("`", "'")
-    value = re.sub(r"\s*-\s*", "-", value)
-    value = re.sub(r"[.,;:]+$", "", value.strip())
-    value = unicodedata.normalize("NFD", value).encode("ascii", "ignore").decode("utf-8")
-    value = re.sub(r"\s+", " ", value)
+# legacy
+# def normalize(value: Optional[str]) -> str:
+#     """Return a normalized string suitable for indexing and searching."""
+#     if not value:
+#         return ""
+#
+#     value = value.replace("’", "'").replace("`", "'")
+#     value = re.sub(r"\s*-\s*", "-", value)
+#     value = re.sub(r"[.,;:]+$", "", value.strip())
+#     value = unicodedata.normalize("NFD", value).encode("ascii", "ignore").decode("utf-8")
+#     value = re.sub(r"\s+", " ", value)
+#
+#     return value.lower().strip()
 
-    return value.lower().strip()
-"""
 
 def remove_stopwords(query_str: str) -> str:
     """
@@ -126,7 +139,6 @@ def remove_stopwords(query_str: str) -> str:
     - "président du conseil" -> "president conseil"
     """
     normalized = normalize(query_str)
-    print(normalized)
     tokens = [
         token
         for token in normalized.split()
@@ -290,7 +302,6 @@ def create_schema() -> Schema:
         row_key=ID(stored=True, unique=True),
         person_id=ID(stored=True),
         mandate_id=ID(stored=True),
-        legislature_id=ID(stored=True),
 
         first_name=TEXT(stored=False),
         last_name=TEXT(stored=False),
@@ -300,7 +311,9 @@ def create_schema() -> Schema:
 
         first_name_display=TEXT(stored=True),
         last_name_display=TEXT(stored=True),
+        alias_display=TEXT(stored=True),
         position_display=TEXT(stored=True),
+        role_display=TEXT(stored=True),
 
         active_from=DATETIME(stored=True),
         active_until=DATETIME(stored=True),
@@ -309,12 +322,12 @@ def create_schema() -> Schema:
 
 def _joined_rows(db: Session) -> list[dict[str, Any]]:
     """
-    Fetch persons joined to mandates and legislatures.
+    Fetch persons joined to mandate memberships and mandates.
 
-    Rule:
-    - For gouvernement rows, the relevant dates are legislature dates.
-    - Otherwise, the relevant dates are mandate dates.
-    - If the relevant start/end dates are missing, the row is excluded.
+    Assumption:
+    - Relevant dates are always stored in is_member_of_mandate.start_date
+      and is_member_of_mandate.end_date.
+    - Rows missing these dates are excluded.
     """
     sql = text(
         """
@@ -323,35 +336,17 @@ def _joined_rows(db: Session) -> list[dict[str, Any]]:
             p.first_name,
             p.last_name,
             p.alias,
-            m.id AS mandate_id,
-            m.position,
-            m.role,
-            lt.legislature_id,
-            CASE
-                WHEN LOWER(lt.institution) = 'gouvernement'
-                THEN lt.start_date
-                ELSE m.start_date
-            END AS active_from,
-            CASE
-                WHEN LOWER(lt.institution) = 'gouvernement'
-                THEN lt.end_date
-                ELSE m.end_date
-            END AS active_until
+            imm.mandate_id,
+            imm.position,
+            imm.role,
+            imm.start_date AS active_from,
+            imm.end_date AS active_until
         FROM persons p
-        JOIN mandates m ON m.person_id = p.person_id
-        JOIN legislatures lt ON lt.legislature_id = m.legislature_id
+        JOIN is_member_of_mandate imm ON imm.person_id = p.person_id
+        JOIN mandates m ON m.mandate_id = imm.mandate_id
         WHERE
-            (
-                LOWER(lt.institution) = 'gouvernement'
-                AND lt.start_date IS NOT NULL
-                AND lt.end_date IS NOT NULL
-            )
-            OR
-            (
-                LOWER(lt.institution) != 'gouvernement'
-                AND m.start_date IS NOT NULL
-                AND m.end_date IS NOT NULL
-            )
+            imm.start_date IS NOT NULL
+            AND imm.end_date IS NOT NULL
         """
     )
 
@@ -395,17 +390,18 @@ def create_index(index_dir: Path = INDEX_DIR) -> dict[str, Any]:
             row_key=f"{row['person_id']}::{row['mandate_id']}",
             person_id=str(row["person_id"]),
             mandate_id=str(row["mandate_id"]),
-            legislature_id=str(row["legislature_id"]),
 
             first_name=normalize(row["first_name"]),
             last_name=normalize(row["last_name"]),
             alias=normalize(row.get("alias") or ""),
-            position=normalize(row["position"]),
+            position=normalize(row.get("position") or ""),
             role=normalize(row.get("role") or ""),
 
             first_name_display=row["first_name"],
             last_name_display=row["last_name"],
-            position_display=row["position"],
+            alias_display=row.get("alias") or "",
+            position_display=row.get("position") or "",
+            role_display=row.get("role") or "",
 
             active_from=datetime.combine(start_date, time.min),
             active_until=datetime.combine(end_date, time.max),
@@ -464,6 +460,26 @@ def build_prefix_query(query_str: str) -> str:
         return ""
 
     return " ".join(f"{token}*" for token in tokens)
+
+
+def build_exact_query(query_str: str):
+    """
+    Build an exact-match query across search fields from normalized tokens.
+
+    Example:
+    - "Paul Doumer" -> exact AND query on "paul" and "doumer"
+    """
+    tokens = query_tokens(query_str)
+
+    if not tokens:
+        return None
+
+    field_queries = []
+    for field in SEARCH_FIELDS:
+        token_queries = [whoosh_query.Term(field, token) for token in tokens]
+        field_queries.append(whoosh_query.And(token_queries))
+
+    return whoosh_query.Or(field_queries)
 
 
 @lru_cache(maxsize=512)
@@ -539,25 +555,22 @@ def format_whoosh_datetime(value: Any) -> str:
 def result_to_dict(
     result,
     rank: int,
-    max_score: float,
 ) -> dict[str, Any]:
     """
     Convert a Whoosh result hit to a JSON/API-friendly dictionary.
     """
     hit = dict(result)
-    # a discuter : normalisation sur le score par le max. pour obtenir un score entre [0.0;1.0]
-    normalized_score = result.score / max_score if max_score else 0.0
 
     return {
         "rank": rank,
-        "norm_score": normalized_score,
-        "raw_bm25_score": float(result.score),
+        "score": float(result.score),
         "person_id": hit["person_id"],
-        "mandate_id": hit["mandate_id"],
-        "legislature_id": hit["legislature_id"],
         "first_name": hit["first_name_display"],
         "last_name": hit["last_name_display"],
+        "alias": hit["alias_display"],
         "position": hit["position_display"],
+        "mandate_id": hit["mandate_id"],
+        "role": hit["role_display"],
         "active_from": format_whoosh_datetime(hit["active_from"]),
         "active_until": format_whoosh_datetime(hit["active_until"]),
     }
@@ -674,19 +687,11 @@ class DecidonSearchEngine:
             groupedby=sorting.FieldFacet("person_id")
         )
 
-        groups = results.groups("person_id")
-        # ou, si un seul facet :
-        groups = results.groups()
-
-        print(groups)
-
         if not results:
             return []
 
-        max_score = max(result.score for result in results) if results else 0.0
-
         rows = [
-            result_to_dict(result, rank, max_score)
+            result_to_dict(result, rank)
             for rank, result in enumerate(results, start=1)
         ]
 
@@ -705,9 +710,10 @@ class DecidonSearchEngine:
         Search one query with safer fallback strategy.
 
         Strategy:
-        1. Main search according to bool_type (AND by default)
-        2. Strong token fallback, longest token first
-        3. OR fallback as last
+        1. Exact match
+        2. Main search according to bool_type (AND by default)
+        3. Strong token fallback, longest token first
+        4. OR fallback as last
 
         This avoids noisy OR results caused by weak tokens.
         """
@@ -716,7 +722,18 @@ class DecidonSearchEngine:
         if active_filter is not None and len(active_filter) == 0:
             return []
 
-        # 1. Main search: AND or OR according to self.bool_type.
+        # 1. Exact match first.
+        exact_query = build_exact_query(query_str)
+        rows = self._run_query(
+            query=exact_query,
+            active_filter=active_filter,
+            limit=limit,
+            match_strategy="EXACT",
+        )
+        if rows:
+            return rows
+
+        # 2. Main search: AND or OR according to self.bool_type.
         query = self.get_query(query_str, "DEFAULT")
         rows = self._run_query(
             query=query,
@@ -724,11 +741,11 @@ class DecidonSearchEngine:
             limit=limit,
             match_strategy=self.bool_type,
         )
-        print(rows)
+
         if rows:
             return rows
 
-        # 2. Strong token fallback first.
+        # 3. Strong token fallback first.
         # Example: "G. de Beauregard (Indre)" -> try "beauregard" before OR.
         tokens = sorted(query_tokens(query_str), key=len, reverse=True)
 
@@ -744,11 +761,10 @@ class DecidonSearchEngine:
                 limit=limit,
                 match_strategy=f"TOKEN_FALLBACK:{token}",
             )
-            print(rows)
             if rows:
                 return rows
 
-        # 3. OR fallback only as last resort.
+        # 4. OR fallback only as last resort.
         if self.bool_type != "OR":
             query = self.get_query(query_str, "OR")
             rows = self._run_query(
@@ -757,7 +773,6 @@ class DecidonSearchEngine:
                 limit=limit,
                 match_strategy="OR_FALLBACK",
             )
-            print(rows)
             if rows:
                 return rows
 
@@ -801,7 +816,7 @@ def run_date_tests() -> None:
 
 def print_results(query: str, results: list[dict[str, Any]]) -> None:
     """
-    Pretty print results for manual tests.
+    Pretty print results for manual tests in tabular format.
     """
     print(f"Requête : {query!r}")
 
@@ -809,23 +824,70 @@ def print_results(query: str, results: list[dict[str, Any]]) -> None:
         print("Aucun résultat")
         return
 
-    print(f"{len(results)} résultat(s)")
+    print(f"{len(results)} résultat(s)\n")
 
+    columns = [
+        ("rank", "RANK"),
+        ("score", "SCORE"),
+        ("person_id", "PERSON_ID"),
+        ("first_name", "FIRST_NAME"),
+        ("last_name", "LAST_NAME"),
+        ("alias", "ALIAS"),
+        ("position", "POSITION"),
+        ("mandate_id", "MANDATE_ID"),
+        ("role", "ROLE"),
+        ("active_from", "ACTIVE_FROM"),
+        ("active_until", "ACTIVE_UNTIL"),
+        ("match_strategy", "STRATEGY"),
+    ]
+
+    rows = []
     for row in results:
-        strategy = row.get("match_strategy", "")
+        formatted = {
+            "rank": str(row.get("rank", "")),
+            "score": f"{row.get('score', 0.0):.4f}",
+            "person_id": str(row.get("person_id", "")),
+            "first_name": str(row.get("first_name", "")),
+            "last_name": str(row.get("last_name", "")),
+            "alias": str(row.get("alias", "")),
+            "position": str(row.get("position", "")),
+            "mandate_id": str(row.get("mandate_id", "")),
+            "role": str(row.get("role", "")),
+            "active_from": str(row.get("active_from", "")),
+            "active_until": str(row.get("active_until", "")),
+            "match_strategy": str(row.get("match_strategy", "")),
+        }
+        rows.append(formatted)
 
-        print(
-            f"* rank={row['rank']} | "
-            f"strategy={strategy} | "
-            f"norm_score={row['norm_score']:.4f} | "
-            f"raw_bm25_score={row['raw_bm25_score']:.4f}\n"
-            f"\t> ID={row['person_id']} | "
-            f"{row['first_name']} | "
-            f"{row['last_name']} | "
-            f"{row['position']} | "
-            f"{row['active_from']} → {row['active_until']}"
+    widths: dict[str, int] = {}
+    for key, label in columns:
+        widths[key] = max(
+            len(label),
+            max((len(r[key]) for r in rows), default=0)
         )
 
+    header = "  ".join(label.ljust(widths[key]) for key, label in columns)
+    separator = "  ".join("-" * widths[key] for key, _ in columns)
+
+    print(header)
+    print(separator)
+
+    for row in rows:
+        line = "  ".join([
+            row["rank"].rjust(widths["rank"]),
+            row["score"].rjust(widths["score"]),
+            row["person_id"].ljust(widths["person_id"]),
+            row["first_name"].ljust(widths["first_name"]),
+            row["last_name"].ljust(widths["last_name"]),
+            row["alias"].ljust(widths["alias"]),
+            row["position"].ljust(widths["position"]),
+            row["mandate_id"].ljust(widths["mandate_id"]),
+            row["role"].ljust(widths["role"]),
+            row["active_from"].ljust(widths["active_from"]),
+            row["active_until"].ljust(widths["active_until"]),
+            row["match_strategy"].ljust(widths["match_strategy"]),
+        ])
+        print(line)
 
 def run_single_query(
     query: str,
@@ -862,24 +924,66 @@ def run_single_query(
     print(f"Temps requête : {end - start:.4f} secondes")
 
 
-def load_entities_from_json(filename: str) -> list[str]:
+def load_batch_payload(filename: str) -> dict[str, Any]:
     """
-    Load entities from a JSON file.
+    Load the new DECIDON batch payload format.
 
-    Supported formats:
-    - ["Jean Jaurès", "Benjamin Jaurès"]
-    - {"Jean Jaurès": ..., "Benjamin Jaurès": ...}
+    Expected format:
+    {
+        "session_id": "...",
+        "session_date": "1903-11-28",
+        "occurrences": [
+            {"source_id": "...", "str_ref": "Paul Doumer"},
+            ...
+        ]
+    }
     """
     with open(filename, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    if isinstance(data, dict):
-        return sorted(set(str(key) for key in data.keys()))
+    if not isinstance(data, dict):
+        raise ValueError("JSON root must be an object.")
 
-    if isinstance(data, list):
-        return sorted(set(str(item) for item in data))
+    if "occurrences" not in data or not isinstance(data["occurrences"], list):
+        raise ValueError("JSON must contain an 'occurrences' list.")
 
-    raise ValueError("JSON must be either a list of strings or a dict.")
+    return data
+
+
+def load_occurrences_from_json(filename: str) -> dict[str, Any]:
+    """
+    Return validated session metadata and cleaned occurrences.
+    """
+    data = load_batch_payload(filename)
+
+    session_id = data.get("session_id")
+    session_date = data.get("session_date")
+    raw_occurrences = data["occurrences"]
+
+    occurrences: list[dict[str, str]] = []
+
+    for occ in raw_occurrences:
+        if not isinstance(occ, dict):
+            continue
+
+        source_id = str(occ.get("source_id") or "").strip()
+        str_ref = str(occ.get("str_ref") or "").strip()
+
+        if not source_id or not str_ref:
+            continue
+
+        occurrences.append(
+            {
+                "source_id": source_id,
+                "str_ref": str_ref,
+            }
+        )
+
+    return {
+        "session_id": session_id,
+        "session_date": session_date,
+        "occurrences": occurrences,
+    }
 
 
 def run_batch_json(
@@ -889,41 +993,67 @@ def run_batch_json(
     limit: int = 10,
     verbose: bool = False,
     show_cache_info: bool = False,
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, Any]:
     """
     Simulate many API queries in a row from a JSON file.
 
-    This keeps the engine open once for the whole batch.
+    Output format:
+    - one search per unique str_ref
+    - preserve all source_id values attached to each str_ref
     """
-    entities = load_entities_from_json(filename)
+    payload = load_occurrences_from_json(filename)
+    occurrences = payload["occurrences"]
 
-    print(f"Recherche dans {len(entities)} entités uniques extraites du JSON")
+    if session_date is None:
+        session_date = payload.get("session_date")
+
+    grouped: dict[str, list[str]] = {}
+    for occ in occurrences:
+        str_ref = occ["str_ref"]
+        source_id = occ["source_id"]
+
+        if str_ref not in grouped:
+            grouped[str_ref] = []
+
+        grouped[str_ref].append(source_id)
+
+    unique_refs = sorted(grouped.keys())
+
+    print(f"Recherche dans {len(occurrences)} occurrences extraites du JSON")
+    print(f"Chaînes uniques à chercher : {len(unique_refs)}")
     print(f"bool_type={bool_type}")
     print(f"session_date={session_date}")
     print("date_filter=precomputed active docnum filter")
-    print("fallback=AND/OR/token")
+    print("fallback=EXACT/AND/OR/token")
     print(f"limit={limit}\n")
 
     engine = DecidonSearchEngine(
         bool_type=bool_type,
     )
 
-    results_by_entity: dict[str, list[dict[str, Any]]] = {}
+    results_by_group: list[dict[str, Any]] = []
 
     start = time_module.time()
 
     try:
-        for entity in entities:
+        for str_ref in unique_refs:
             results = engine.search(
-                entity,
+                str_ref,
                 session_date=session_date,
                 limit=limit,
             )
 
-            results_by_entity[entity] = results
+            group_row = {
+                "str_ref": str_ref,
+                "source_ids": grouped[str_ref],
+                "results": results,
+            }
+            results_by_group.append(group_row)
 
             if verbose:
-                print_results(entity, results)
+                print(f"str_ref={str_ref!r}")
+                print(f"source_ids={grouped[str_ref]}")
+                print_results(str_ref, results)
                 print("==============\n")
 
         if show_cache_info:
@@ -934,12 +1064,13 @@ def run_batch_json(
 
     end = time_module.time()
 
-    total_results = sum(len(results) for results in results_by_entity.values())
-    empty_queries = sum(1 for results in results_by_entity.values() if not results)
+    total_results = sum(len(item["results"]) for item in results_by_group)
+    empty_queries = sum(1 for item in results_by_group if not item["results"])
 
     strategy_counts: dict[str, int] = {}
 
-    for results in results_by_entity.values():
+    for item in results_by_group:
+        results = item["results"]
         if not results:
             continue
 
@@ -947,12 +1078,16 @@ def run_batch_json(
         strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
 
     print(f"Temps total : {end - start:.2f} secondes")
-    print(f"Temps moyen / entité : {(end - start) / max(len(entities), 1):.4f} secondes")
+    print(f"Temps moyen / chaîne unique : {(end - start) / max(len(unique_refs), 1):.4f} secondes")
     print(f"Résultats retournés : {total_results}")
-    print(f"Requêtes sans résultat : {empty_queries}")
+    print(f"Chaînes sans résultat : {empty_queries}")
     print(f"Stratégies utilisées : {strategy_counts}")
 
-    return results_by_entity
+    return {
+        "session_id": payload.get("session_id"),
+        "session_date": session_date,
+        "results": results_by_group,
+    }
 
 
 def main() -> None:
@@ -1020,6 +1155,13 @@ def main() -> None:
         help="Print LRU cache statistics.",
     )
 
+    parser.add_argument(
+        "--output-json",
+        type=str,
+        default=None,
+        help="Optional path to save batch results as JSON.",
+    )
+
     args = parser.parse_args()
 
     if args.build_index:
@@ -1042,7 +1184,7 @@ def main() -> None:
         return
 
     if args.json:
-        run_batch_json(
+        output = run_batch_json(
             filename=args.json,
             session_date=args.session_date,
             bool_type=args.bool_type,
@@ -1050,18 +1192,21 @@ def main() -> None:
             verbose=args.verbose,
             show_cache_info=args.cache_info,
         )
+
+        if args.output_json:
+            with open(args.output_json, "w", encoding="utf-8") as f:
+                json.dump(output, f, ensure_ascii=False, indent=2)
+
+            print(f"Résultats JSON écrits dans : {args.output_json}")
+
         return
 
     print("No action requested.")
     print("Examples:")
-    print("  python3 main.py --build-index")
-    print("  python3 main.py --test-dates")
-    print("  python3 main.py --query 'jean jaurès' --session-date 1914-05-01")
-    print("  python3 main.py --query 'le président' --session-date 1914")
-    print("  python3 main.py --query 'le président' --session-date 1914 --cache-info")
-    print("  python3 main.py --json '2026-05-28-1903-11-27-GT-SPK 1.json' --session-date 1903-11-27")
-    print("  python3 main.py --json '2026-05-28-1903-11-27-GT-SPK 1.json' --session-date 1903-11-27 --cache-info")
-
+    print("  python3 app/index.py --build-index")
+    print("  python3 app/index.py --test-dates")
+    print("  python3 app/index.py --query 'jean jaurès' --session-date 1914-05-01")
+    print("  python3 app/index.py --json 'app/2026-06-03-1903-11-28-INFER-SPK.json' --output-json 'app/2026-06-03-1903-11-28-INFER-SPK.linked.json'")
 
 if __name__ == "__main__":
     main()

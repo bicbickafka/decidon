@@ -12,8 +12,7 @@ from typing import Any, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.index import match_mention
-
+from app.index import DecidonSearchEngine
 
 DEFAULT_START = "1870-01-01"
 DEFAULT_END = "1940-07-10"
@@ -45,7 +44,7 @@ def _person_filters(first_name: Optional[str], last_name: Optional[str]) -> tupl
 def _mandate_filters(
     position: Optional[str],
     group_value: Optional[str],
-    legislature_name: Optional[str],
+    mandate_name: Optional[str],
     institution: Optional[str],
     start_from: Optional[date],
     end_until: Optional[date],
@@ -54,19 +53,19 @@ def _mandate_filters(
     params: dict[str, Any] = {}
 
     if position:
-        filters.append("LOWER(COALESCE(m.position, '')) LIKE :position")
+        filters.append("LOWER(COALESCE(imm.position, '')) LIKE :position")
         params["position"] = f"%{normalize(position)}%"
 
     if group_value:
-        filters.append('LOWER(COALESCE(m."group", \'\')) LIKE :group_value')
+        filters.append('LOWER(COALESCE(imm."group", \'\')) LIKE :group_value')
         params["group_value"] = f"%{normalize(group_value)}%"
 
-    if legislature_name:
-        filters.append("LOWER(COALESCE(lt.name, '')) LIKE :legislature_name")
-        params["legislature_name"] = f"%{normalize(legislature_name)}%"
+    if mandate_name:
+        filters.append("LOWER(COALESCE(m.name, '')) LIKE :mandate_name")
+        params["mandate_name"] = f"%{normalize(mandate_name)}%"
 
     if institution:
-        filters.append("LOWER(COALESCE(lt.institution, '')) LIKE :institution")
+        filters.append("LOWER(COALESCE(m.institution, '')) LIKE :institution")
         params["institution"] = f"%{normalize(institution)}%"
 
     if start_from:
@@ -74,30 +73,33 @@ def _mandate_filters(
             """
             (
                 CASE
-                    WHEN LOWER(lt.institution) = 'gouvernement'
-                        THEN :at_date BETWEEN COALESCE(lt.start_date, '1870-01-01')
-                                         AND COALESCE(lt.end_date, '1940-07-10')
-                    ELSE :at_date BETWEEN COALESCE(m.start_date, '1870-01-01')
-                                     AND COALESCE(m.end_date, '1940-07-10')
+                    WHEN LOWER(m.institution) = 'gouvernement'
+                        THEN :at_date BETWEEN COALESCE(m.start_date, :default_start)
+                                         AND COALESCE(m.end_date, :default_end)
+                    ELSE :at_date BETWEEN COALESCE(imm.start_date, :default_start)
+                                     AND COALESCE(imm.end_date, :default_end)
                 END
             )
             """
         )
         params["at_date"] = start_from.isoformat()
+        params["default_start"] = DEFAULT_START
+        params["default_end"] = DEFAULT_END
 
     if end_until:
         filters.append(
             """
             (
                 CASE
-                    WHEN LOWER(lt.institution) = 'gouvernement'
-                        THEN COALESCE(lt.end_date, '1940-07-10') <= :end_until
-                    ELSE COALESCE(m.end_date, '1940-07-10') <= :end_until
+                    WHEN LOWER(m.institution) = 'gouvernement'
+                        THEN COALESCE(m.end_date, :default_end) <= :end_until
+                    ELSE COALESCE(imm.end_date, :default_end) <= :end_until
                 END
             )
             """
         )
         params["end_until"] = end_until.isoformat()
+        params["default_end"] = DEFAULT_END
 
     return filters, params
 
@@ -105,8 +107,8 @@ def _mandate_filters(
 def _base_person_mandate_join() -> str:
     return """
         FROM persons p
-        JOIN mandates m ON m.person_id = p.person_id
-        JOIN legislatures lt ON lt.legislature_id = m.legislature_id
+        JOIN is_member_of_mandate imm ON imm.person_id = p.person_id
+        JOIN mandates m ON m.mandate_id = imm.mandate_id
     """
 
 
@@ -116,14 +118,14 @@ def count_person_mandate_groups_logic(
     last_name: Optional[str],
     position: Optional[str],
     group_value: Optional[str],
-    legislature_name: Optional[str],
+    mandate_name: Optional[str],
     institution: Optional[str],
     start_from: Optional[date],
     end_until: Optional[date],
 ) -> int:
     p_filters, p_params = _person_filters(first_name, last_name)
     m_filters, m_params = _mandate_filters(
-        position, group_value, legislature_name, institution, start_from, end_until
+        position, group_value, mandate_name, institution, start_from, end_until
     )
     params = {**p_params, **m_params}
 
@@ -145,7 +147,7 @@ def search_person_mandate_groups_logic(
     last_name: Optional[str],
     position: Optional[str],
     group_value: Optional[str],
-    legislature_name: Optional[str],
+    mandate_name: Optional[str],
     institution: Optional[str],
     start_from: Optional[date],
     end_until: Optional[date],
@@ -156,7 +158,7 @@ def search_person_mandate_groups_logic(
 ) -> list[dict[str, Any]]:
     p_filters, p_params = _person_filters(first_name, last_name)
     m_filters, m_params = _mandate_filters(
-        position, group_value, legislature_name, institution, start_from, end_until
+        position, group_value, mandate_name, institution, start_from, end_until
     )
     params = {**p_params, **m_params}
 
@@ -196,19 +198,18 @@ def search_person_mandate_groups_logic(
     for person in people:
         mandates_sql = f"""
             SELECT
-                m.legislature_id,
-                LOWER(lt.institution) AS institution,
-                lt.name AS legislature_name,
-                m.position,
-                m.role,
-                m.constituency,
-                m."group" AS "group",
-                m.start_date,
-                m.end_date
-            FROM mandates m
-            JOIN legislatures lt ON lt.legislature_id = m.legislature_id
-            WHERE m.person_id = :person_id AND {' AND '.join(m_filters)}
-            ORDER BY m.start_date ASC
+                m.mandate_id,
+                LOWER(m.institution) AS institution,
+                m.name AS mandate_name,
+                imm.position,
+                imm.role,
+                imm."group" AS "group",
+                imm.start_date,
+                imm.end_date
+            FROM is_member_of_mandate imm
+            JOIN mandates m ON m.mandate_id = imm.mandate_id
+            WHERE imm.person_id = :person_id AND {' AND '.join(m_filters)}
+            ORDER BY COALESCE(imm.start_date, m.start_date) ASC
         """
 
         mandates = db.execute(
@@ -249,19 +250,18 @@ def get_person_by_id(db: Session, person_id: str) -> Optional[dict[str, Any]]:
 
     mandates_sql = """
         SELECT
-            m.legislature_id,
-            LOWER(lt.institution) AS institution,
-            lt.name AS legislature_name,
-            m.position,
-            m.role,
-            m.constituency,
-            m."group" AS "group",
-            m.start_date,
-            m.end_date
-        FROM mandates m
-        JOIN legislatures lt ON lt.legislature_id = m.legislature_id
-        WHERE m.person_id = :person_id
-        ORDER BY m.start_date ASC
+            m.mandate_id,
+            LOWER(m.institution) AS institution,
+            m.name AS mandate_name,
+            imm.position,
+            imm.role,
+            imm."group" AS "group",
+            imm.start_date,
+            imm.end_date
+        FROM is_member_of_mandate imm
+        JOIN mandates m ON m.mandate_id = imm.mandate_id
+        WHERE imm.person_id = :person_id
+        ORDER BY COALESCE(imm.start_date, m.start_date) ASC
     """
     mandates = db.execute(text(mandates_sql), {"person_id": person_id}).mappings().all()
 
@@ -333,16 +333,16 @@ def get_persons_by_role_at_date(db: Session, position: str, at_date: date) -> li
             p.sycomore_id,
             p.senat_id
         FROM persons p
-        JOIN mandates m ON m.person_id = p.person_id
-        JOIN legislatures lt ON lt.legislature_id = m.legislature_id
-        WHERE LOWER(COALESCE(m.position, '')) LIKE :position
+        JOIN is_member_of_mandate imm ON imm.person_id = p.person_id
+        JOIN mandates m ON m.mandate_id = imm.mandate_id
+        WHERE LOWER(COALESCE(imm.position, '')) LIKE :position
           AND (
                 CASE
-                    WHEN LOWER(lt.institution) = 'gouvernement'
-                        THEN :at_date BETWEEN COALESCE(lt.start_date, '1870-01-01')
-                                         AND COALESCE(lt.end_date, '1940-07-10')
-                    ELSE :at_date BETWEEN COALESCE(m.start_date, '1870-01-01')
-                                     AND COALESCE(m.end_date, '1940-07-10')
+                    WHEN LOWER(m.institution) = 'gouvernement'
+                        THEN :at_date BETWEEN COALESCE(m.start_date, :default_start)
+                                         AND COALESCE(m.end_date, :default_end)
+                    ELSE :at_date BETWEEN COALESCE(imm.start_date, :default_start)
+                                     AND COALESCE(imm.end_date, :default_end)
                 END
               )
         ORDER BY p.last_name ASC, p.first_name ASC
@@ -352,12 +352,17 @@ def get_persons_by_role_at_date(db: Session, position: str, at_date: date) -> li
         dict(row)
         for row in db.execute(
             text(sql),
-            {"position": f"%{normalize(position)}%", "at_date": at_date.isoformat()},
+            {
+                "position": f"%{normalize(position)}%",
+                "at_date": at_date.isoformat(),
+                "default_start": DEFAULT_START,
+                "default_end": DEFAULT_END,
+            },
         ).mappings().all()
     ]
 
 
-def list_legislatures_logic(
+def list_mandates_logic(
     db: Session,
     institution: Optional[str],
     name: Optional[str],
@@ -375,14 +380,14 @@ def list_legislatures_logic(
 
     sql = f"""
         SELECT
-            legislature_id,
+            mandate_id,
             institution,
             name,
             start_date,
             end_date,
             wikidata_qid,
             wikipedia_url
-        FROM legislatures
+        FROM mandates
         WHERE {' AND '.join(filters)}
         ORDER BY start_date ASC
     """
@@ -390,7 +395,7 @@ def list_legislatures_logic(
     return [dict(row) for row in db.execute(text(sql), params).mappings().all()]
 
 
-def get_members_logic(db: Session, legislature_id: str) -> list[dict[str, Any]]:
+def get_members_logic(db: Session, mandate_id: str) -> list[dict[str, Any]]:
     sql = """
         SELECT DISTINCT
             p.person_id,
@@ -404,14 +409,14 @@ def get_members_logic(db: Session, legislature_id: str) -> list[dict[str, Any]]:
             p.sycomore_id,
             p.senat_id
         FROM persons p
-        JOIN mandates m ON m.person_id = p.person_id
-        WHERE m.legislature_id = :legislature_id
+        JOIN is_member_of_mandate imm ON imm.person_id = p.person_id
+        WHERE imm.mandate_id = :mandate_id
         ORDER BY p.last_name ASC, p.first_name ASC
     """
 
     return [
         dict(row)
-        for row in db.execute(text(sql), {"legislature_id": legislature_id}).mappings().all()
+        for row in db.execute(text(sql), {"mandate_id": mandate_id}).mappings().all()
     ]
 
 
@@ -448,4 +453,8 @@ def lookup_logic(db: Session, q: str, limit: int) -> list[dict[str, Any]]:
 
 
 def match_mention_logic(db, text_value: str, session_date=None, limit: int = 5):
-    return match_mention(raw_text=text_value, session_date=session_date, limit=limit)
+    engine = DecidonSearchEngine()
+    try:
+        return engine.search(query_str=text_value, session_date=session_date, limit=limit)
+    finally:
+        engine.close()

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import crud, schemas
-from app.index import match_mention, rebuild_index
+from app.index import rebuild_index
 
 api_router = APIRouter()
 
@@ -53,7 +53,7 @@ def search_grouped_mandates(
     last_name: str | None = Query(None),
     position: str | None = Query(None),
     group_value: str | None = Query(None),
-    legislature_name: str | None = Query(None),
+    mandate_name: str | None = Query(None),
     institution: str | None = Query(None),
     start_from: DateType | None = Query(None),
     end_until: DateType | None = Query(None),
@@ -69,7 +69,7 @@ def search_grouped_mandates(
         last_name,
         position,
         group_value,
-        legislature_name,
+        mandate_name,
         institution,
         start_from,
         end_until,
@@ -81,7 +81,7 @@ def search_grouped_mandates(
         last_name,
         position,
         group_value,
-        legislature_name,
+        mandate_name,
         institution,
         start_from,
         end_until,
@@ -113,27 +113,27 @@ def get_person(person_id: str, db: Session = Depends(get_db)):
 
 
 @api_router.get(
-    "/legislatures",
-    tags=["legislatures"],
-    summary="Retrieve legislatures with optional filters.",
-    response_model=list[schemas.LegislatureOut],
+    "/mandates",
+    tags=["mandates"],
+    summary="Retrieve mandates with optional filters.",
+    response_model=list[schemas.MandateEntityOut],
 )
-def list_legislatures(
+def list_mandates(
     institution: str | None = Query(None),
     name: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    return crud.list_legislatures_logic(db, institution, name)
+    return crud.list_mandates_logic(db, institution, name)
 
 
 @api_router.get(
-    "/legislatures/{legislature_id}/members",
-    tags=["legislatures"],
-    summary="Retrieve all members of one legislature.",
+    "/mandates/{mandate_id}/members",
+    tags=["mandates"],
+    summary="Retrieve all members of one mandate.",
     response_model=list[schemas.PersonOut],
 )
-def get_members(legislature_id: str, db: Session = Depends(get_db)):
-    return crud.get_members_logic(db, legislature_id)
+def get_members(mandate_id: str, db: Session = Depends(get_db)):
+    return crud.get_members_logic(db, mandate_id)
 
 
 @api_router.get(
@@ -162,7 +162,12 @@ def match_one(
     limit: int = Query(5, ge=1, le=20),
     db: Session = Depends(get_db),
 ):
-    return crud.match_mention_logic(db, text_value=text, session_date=session_date, limit=limit)
+    return crud.match_mention_logic(
+        db,
+        text_value=text,
+        session_date=session_date,
+        limit=limit,
+    )
 
 
 @api_router.get(

@@ -6,7 +6,7 @@ venv/
 *.db
 
 # Data & scraping
-data_scraping/
+scraping/
 db/data/
 
 # Python cache
@@ -21,6 +21,9 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Search indexes
+indexdir/
 
 # Specific files (quote paths with spaces)
 "app/VT tests"
