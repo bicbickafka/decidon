@@ -27,7 +27,7 @@ class MandateOut(BaseModel):
     institution: str
     mandate_name: str
     position: Optional[str] = None
-    role: Optional[str] = None
+    roles: Optional[str] = None
     group: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -51,12 +51,12 @@ class PersonOut(BaseModel):
 
 
 class PersonDetailOut(PersonOut):
-    mandates: list[MandateOut] = Field(default_factory=list)
+    mandate: list[MandateOut] = Field(default_factory=list)
 
 
 class PersonMandateGroupOut(BaseModel):
     person: PersonOut
-    mandates: list[MandateOut]
+    mandate: list[MandateOut]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,7 +75,7 @@ class MandateRowOut(BaseModel):
     first_name: str
     alias: Optional[str] = None
     position: Optional[str] = None
-    role: Optional[str] = None
+    roles: Optional[str] = None
     mandate_name: str
     institution: str
     group: Optional[str] = None
@@ -108,7 +108,7 @@ class SessionLinkOut(BaseModel):
     id: int
     session_id: str
     person_id: str
-    role: Optional[str] = None
+    roles: Optional[str] = None
     link_method: Optional[str] = None
     confidence_score: Optional[float] = None
 
@@ -123,7 +123,7 @@ class ParsedMentionOut(BaseModel):
     last_name: Optional[str] = None
     constituency: Optional[str] = None
     title: Optional[str] = None
-    role: Optional[str] = None
+    roles: Optional[str] = None
     alias: Optional[str] = None
 
 
@@ -149,7 +149,7 @@ class MatchCandidateOut(BaseModel):
     mandate_id: Optional[str] = None
     mandate_name: Optional[str] = None
     position: Optional[str] = None
-    role: Optional[str] = None
+    roles: Optional[str] = None
     active_from: Optional[date] = None
     active_until: Optional[date] = None
     score_components: MatchScoreComponentsOut

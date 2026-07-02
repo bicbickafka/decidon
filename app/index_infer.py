@@ -31,14 +31,18 @@ Features:
 
 Batch JSON format expected:
 {
-  "session_id": "...",
-  "session_date": "1903-11-28",
-  "occurrences": [
+  "metadata": {
+    "session_id": "...",
+    "session_date": "1903-11-28"
+  },
+  "entities": [
     {
-      "source_id": "...",
-      "str_ref": "Paul Doumer"
+      "id": "...",
+      "text": "Paul Doumer",
+      "entity_type": "SPK"
     }
-  ]
+  ],
+  "parameters": {}
 }
 """
 
@@ -61,7 +65,7 @@ from typing import Any, Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from stopwordsiso import stopwords
-from whoosh import index, query as whoosh_query, scoring, sorting
+from whoosh import index, query as whoosh_query, scoring
 from whoosh.fields import DATETIME, ID, Schema, TEXT
 from whoosh.qparser import AndGroup, MultifieldParser, OrGroup
 
@@ -80,7 +84,7 @@ INDEX_DIR = BASE_DIR / "indexdir"
 BM25_K1 = 1.5
 BM25_B = 0.75
 
-SEARCH_FIELDS = ["first_name", "last_name", "alias", "position", "role"]
+SEARCH_FIELDS = ["first_name", "last_name", "alias", "position", "roles"]
 
 FRENCH_STOPWORDS = stopwords("fr")
 
@@ -107,6 +111,7 @@ def normalize(value: Optional[str]) -> str:
 
     value = value.replace("’", "'").replace("`", "'")
     value = value.replace("-", " ")
+    value = value.replace("'", " ")   # <-- AJOUT : traiter l'apostrophe comme separateur
     value = re.sub(r"[()\[\]{},;:!?]", " ", value)
     value = re.sub(r"[.,;:]+$", "", value.strip())
     value = unicodedata.normalize("NFD", value).encode("ascii", "ignore").decode("utf-8")
@@ -128,6 +133,19 @@ def normalize(value: Optional[str]) -> str:
 #     value = re.sub(r"\s+", " ", value)
 #
 #     return value.lower().strip()
+
+
+def build_wikidata_url(qid: Optional[str]) -> Optional[str]:
+    """
+    Build a Wikidata URL from a QID.
+
+    Example:
+    - "Q1234" -> "https://www.wikidata.org/wiki/Q1234"
+    - "" or None -> None
+    """
+    if not qid:
+        return None
+    return f"https://www.wikidata.org/wiki/{qid}"
 
 
 def remove_stopwords(query_str: str) -> str:
@@ -302,18 +320,19 @@ def create_schema() -> Schema:
         row_key=ID(stored=True, unique=True),
         person_id=ID(stored=True),
         mandate_id=ID(stored=True),
+        wikidata_qid=ID(stored=True),
 
         first_name=TEXT(stored=False),
         last_name=TEXT(stored=False),
         alias=TEXT(stored=False),
         position=TEXT(stored=False),
-        role=TEXT(stored=False),
+        roles=TEXT(stored=False),
 
         first_name_display=TEXT(stored=True),
         last_name_display=TEXT(stored=True),
         alias_display=TEXT(stored=True),
         position_display=TEXT(stored=True),
-        role_display=TEXT(stored=True),
+        roles_display=TEXT(stored=True),
 
         active_from=DATETIME(stored=True),
         active_until=DATETIME(stored=True),
@@ -336,17 +355,18 @@ def _joined_rows(db: Session) -> list[dict[str, Any]]:
             p.first_name,
             p.last_name,
             p.alias,
-            imm.mandate_id,
-            imm.position,
-            imm.role,
-            imm.start_date AS active_from,
-            imm.end_date AS active_until
-        FROM persons p
-        JOIN is_member_of_mandate imm ON imm.person_id = p.person_id
-        JOIN mandates m ON m.mandate_id = imm.mandate_id
+            p.wikidata_qid,
+            pm.mandate_id,
+            pm.position,
+            pm.roles,
+            pm.start_date AS active_from,
+            pm.end_date AS active_until
+        FROM person p
+        JOIN person_mandate pm ON pm.person_id = p.person_id
+        JOIN mandate m ON m.mandate_id = pm.mandate_id
         WHERE
-            imm.start_date IS NOT NULL
-            AND imm.end_date IS NOT NULL
+            pm.start_date IS NOT NULL
+            AND pm.end_date IS NOT NULL
         """
     )
 
@@ -390,18 +410,19 @@ def create_index(index_dir: Path = INDEX_DIR) -> dict[str, Any]:
             row_key=f"{row['person_id']}::{row['mandate_id']}",
             person_id=str(row["person_id"]),
             mandate_id=str(row["mandate_id"]),
+            wikidata_qid=str(row.get("wikidata_qid") or ""),
 
             first_name=normalize(row["first_name"]),
             last_name=normalize(row["last_name"]),
             alias=normalize(row.get("alias") or ""),
             position=normalize(row.get("position") or ""),
-            role=normalize(row.get("role") or ""),
+            roles=normalize(row.get("roles") or ""),
 
             first_name_display=row["first_name"],
             last_name_display=row["last_name"],
             alias_display=row.get("alias") or "",
             position_display=row.get("position") or "",
-            role_display=row.get("role") or "",
+            roles_display=row.get("roles") or "",
 
             active_from=datetime.combine(start_date, time.min),
             active_until=datetime.combine(end_date, time.max),
@@ -565,16 +586,69 @@ def result_to_dict(
         "rank": rank,
         "score": float(result.score),
         "person_id": hit["person_id"],
+        "wikidata_url": build_wikidata_url(hit.get("wikidata_qid")),
         "first_name": hit["first_name_display"],
         "last_name": hit["last_name_display"],
         "alias": hit["alias_display"],
         "position": hit["position_display"],
         "mandate_id": hit["mandate_id"],
-        "role": hit["role_display"],
+        "roles": hit["roles_display"],
         "active_from": format_whoosh_datetime(hit["active_from"]),
         "active_until": format_whoosh_datetime(hit["active_until"]),
     }
 
+
+def group_results_by_person(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        person_id = row["person_id"]
+
+        if person_id not in grouped:
+            grouped[person_id] = {
+                "rank": row["rank"],
+                "score": row["score"],
+                "match_strategy": row["match_strategy"],
+                "person_id": row["person_id"],
+                "wikidata_url": row.get("wikidata_url"),
+                "first_name": row["first_name"],
+                "last_name": row["last_name"],
+                "alias": row["alias"],
+                "mandates": [],
+            }
+
+        grouped[person_id]["score"] = max(grouped[person_id]["score"], row["score"])
+        grouped[person_id]["mandates"].append(
+            {
+                "mandate_id": row["mandate_id"],
+                "position": row["position"],
+                "roles": row["roles"],
+                "active_from": row["active_from"],
+                "active_until": row["active_until"],
+                "_sort_rank": row["rank"],
+            }
+        )
+
+    grouped_rows = list(grouped.values())
+    grouped_rows.sort(key=lambda row: (-row["score"], row["rank"]))
+
+    for rank, row in enumerate(grouped_rows, start=1):
+        row["rank"] = rank
+        row["mandates"].sort(key=lambda mandate: mandate["_sort_rank"])
+
+        row["mandates"] = [
+            {
+                "rank": mandate_rank,
+                "mandate_id": mandate["mandate_id"],
+                "position": mandate["position"],
+                "roles": mandate["roles"],
+                "active_from": mandate["active_from"],
+                "active_until": mandate["active_until"],
+            }
+            for mandate_rank, mandate in enumerate(row["mandates"], start=1)
+        ]
+
+    return grouped_rows
 
 class DecidonSearchEngine:
     """
@@ -684,7 +758,6 @@ class DecidonSearchEngine:
             query,
             limit=limit,
             filter=active_filter,
-            groupedby=sorting.FieldFacet("person_id")
         )
 
         if not results:
@@ -833,12 +906,7 @@ def print_results(query: str, results: list[dict[str, Any]]) -> None:
         ("first_name", "FIRST_NAME"),
         ("last_name", "LAST_NAME"),
         ("alias", "ALIAS"),
-        ("position", "POSITION"),
-        ("mandate_id", "MANDATE_ID"),
-        ("role", "ROLE"),
-        ("active_from", "ACTIVE_FROM"),
-        ("active_until", "ACTIVE_UNTIL"),
-        ("match_strategy", "STRATEGY"),
+        ("match_count", "MATCH_COUNT"),
     ]
 
     rows = []
@@ -850,12 +918,7 @@ def print_results(query: str, results: list[dict[str, Any]]) -> None:
             "first_name": str(row.get("first_name", "")),
             "last_name": str(row.get("last_name", "")),
             "alias": str(row.get("alias", "")),
-            "position": str(row.get("position", "")),
-            "mandate_id": str(row.get("mandate_id", "")),
-            "role": str(row.get("role", "")),
-            "active_from": str(row.get("active_from", "")),
-            "active_until": str(row.get("active_until", "")),
-            "match_strategy": str(row.get("match_strategy", "")),
+            "match_count": str(len(row.get("matches", []))),
         }
         rows.append(formatted)
 
@@ -880,14 +943,10 @@ def print_results(query: str, results: list[dict[str, Any]]) -> None:
             row["first_name"].ljust(widths["first_name"]),
             row["last_name"].ljust(widths["last_name"]),
             row["alias"].ljust(widths["alias"]),
-            row["position"].ljust(widths["position"]),
-            row["mandate_id"].ljust(widths["mandate_id"]),
-            row["role"].ljust(widths["role"]),
-            row["active_from"].ljust(widths["active_from"]),
-            row["active_until"].ljust(widths["active_until"]),
-            row["match_strategy"].ljust(widths["match_strategy"]),
+            row["match_count"].rjust(widths["match_count"]),
         ])
         print(line)
+
 
 def run_single_query(
     query: str,
@@ -906,11 +965,11 @@ def run_single_query(
     start = time_module.time()
 
     try:
-        results = engine.search(
+        results = group_results_by_person(engine.search(
             query,
             session_date=session_date,
             limit=limit,
-        )
+        ))
 
         if show_cache_info:
             print("Cache info:", engine.cache_info())
@@ -926,16 +985,22 @@ def run_single_query(
 
 def load_batch_payload(filename: str) -> dict[str, Any]:
     """
-    Load the new DECIDON batch payload format.
+    Load the DECIDON batch payload format.
 
     Expected format:
     {
+      "metadata": {
         "session_id": "...",
-        "session_date": "1903-11-28",
-        "occurrences": [
-            {"source_id": "...", "str_ref": "Paul Doumer"},
-            ...
-        ]
+        "session_date": "1903-11-28"
+      },
+      "entities": [
+        {
+          "id": "...",
+          "text": "Paul Doumer",
+          "entity_type": "SPK"
+        }
+      ],
+      "parameters": {}
     }
     """
     with open(filename, "r", encoding="utf-8") as f:
@@ -944,45 +1009,56 @@ def load_batch_payload(filename: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("JSON root must be an object.")
 
-    if "occurrences" not in data or not isinstance(data["occurrences"], list):
-        raise ValueError("JSON must contain an 'occurrences' list.")
+    entities = data.get("entities")
+    if not isinstance(entities, list):
+        raise ValueError("JSON must contain an 'entities' list.")
+
+    metadata = data.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        raise ValueError("'metadata' must be an object when provided.")
+
+    parameters = data.get("parameters")
+    if parameters is not None and not isinstance(parameters, dict):
+        raise ValueError("'parameters' must be an object when provided.")
 
     return data
 
 
-def load_occurrences_from_json(filename: str) -> dict[str, Any]:
+def load_entities_from_json(filename: str) -> dict[str, Any]:
     """
-    Return validated session metadata and cleaned occurrences.
+    Return validated metadata, parameters, and cleaned entities.
     """
     data = load_batch_payload(filename)
 
-    session_id = data.get("session_id")
-    session_date = data.get("session_date")
-    raw_occurrences = data["occurrences"]
+    metadata = data.get("metadata") or {}
+    parameters = data.get("parameters") or {}
+    raw_entities = data["entities"]
 
-    occurrences: list[dict[str, str]] = []
+    entities: list[dict[str, str]] = []
 
-    for occ in raw_occurrences:
-        if not isinstance(occ, dict):
+    for item in raw_entities:
+        if not isinstance(item, dict):
             continue
 
-        source_id = str(occ.get("source_id") or "").strip()
-        str_ref = str(occ.get("str_ref") or "").strip()
+        entity_id = str(item.get("id") or "").strip()
+        text_value = str(item.get("text") or "").strip()
+        entity_type = str(item.get("entity_type") or "").strip()
 
-        if not source_id or not str_ref:
+        if not entity_id or not text_value:
             continue
 
-        occurrences.append(
+        entities.append(
             {
-                "source_id": source_id,
-                "str_ref": str_ref,
+                "id": entity_id,
+                "text": text_value,
+                "entity_type": entity_type,
             }
         )
 
     return {
-        "session_id": session_id,
-        "session_date": session_date,
-        "occurrences": occurrences,
+        "metadata": metadata,
+        "parameters": parameters,
+        "entities": entities,
     }
 
 
@@ -997,30 +1073,19 @@ def run_batch_json(
     """
     Simulate many API queries in a row from a JSON file.
 
-    Output format:
-    - one search per unique str_ref
-    - preserve all source_id values attached to each str_ref
+    Output mirrors the batch input and returns per-entity ranked results.
     """
-    payload = load_occurrences_from_json(filename)
-    occurrences = payload["occurrences"]
+    payload = load_entities_from_json(filename)
+    metadata = payload["metadata"]
+    parameters = payload["parameters"]
+    entities = payload["entities"]
 
     if session_date is None:
-        session_date = payload.get("session_date")
+        session_date = metadata.get("session_date")
 
-    grouped: dict[str, list[str]] = {}
-    for occ in occurrences:
-        str_ref = occ["str_ref"]
-        source_id = occ["source_id"]
+    started_at = datetime.now().isoformat()
 
-        if str_ref not in grouped:
-            grouped[str_ref] = []
-
-        grouped[str_ref].append(source_id)
-
-    unique_refs = sorted(grouped.keys())
-
-    print(f"Recherche dans {len(occurrences)} occurrences extraites du JSON")
-    print(f"Chaînes uniques à chercher : {len(unique_refs)}")
+    print(f"Recherche dans {len(entities)} entités extraites du JSON")
     print(f"bool_type={bool_type}")
     print(f"session_date={session_date}")
     print("date_filter=precomputed active docnum filter")
@@ -1031,29 +1096,34 @@ def run_batch_json(
         bool_type=bool_type,
     )
 
-    results_by_group: list[dict[str, Any]] = []
+    response_entities: list[dict[str, Any]] = []
 
     start = time_module.time()
 
     try:
-        for str_ref in unique_refs:
-            results = engine.search(
-                str_ref,
+        for item in entities:
+            text_value = item["text"]
+            raw_results = engine.search(
+                text_value,
                 session_date=session_date,
                 limit=limit,
             )
+            persons = group_results_by_person(raw_results)
 
-            group_row = {
-                "str_ref": str_ref,
-                "source_ids": grouped[str_ref],
-                "results": results,
+            response_item = {
+                "id": item["id"],
+                "text": item["text"],
+                "entity_type": item.get("entity_type", ""),
+                "persons": persons,
             }
-            results_by_group.append(group_row)
+
+            response_entities.append(response_item)
 
             if verbose:
-                print(f"str_ref={str_ref!r}")
-                print(f"source_ids={grouped[str_ref]}")
-                print_results(str_ref, results)
+                print(f"id={item['id']!r}")
+                print(f"text={item['text']!r}")
+                print(f"entity_type={item.get('entity_type', '')!r}")
+                print_results(text_value, persons)
                 print("==============\n")
 
         if show_cache_info:
@@ -1063,30 +1133,37 @@ def run_batch_json(
         engine.close()
 
     end = time_module.time()
+    ended_at = datetime.now().isoformat()
 
-    total_results = sum(len(item["results"]) for item in results_by_group)
-    empty_queries = sum(1 for item in results_by_group if not item["results"])
+    total_results = sum(len(item["persons"]) for item in response_entities)
+    empty_queries = sum(1 for item in response_entities if not item["persons"])
 
     strategy_counts: dict[str, int] = {}
 
-    for item in results_by_group:
-        results = item["results"]
-        if not results:
+    for item in response_entities:
+        persons = item["persons"]
+        if not persons:
             continue
 
-        strategy = results[0].get("match_strategy", "UNKNOWN")
+        strategy = persons[0].get("match_strategy", "UNKNOWN")
         strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
 
     print(f"Temps total : {end - start:.2f} secondes")
-    print(f"Temps moyen / chaîne unique : {(end - start) / max(len(unique_refs), 1):.4f} secondes")
+    print(f"Temps moyen / entité : {(end - start) / max(len(entities), 1):.4f} secondes")
     print(f"Résultats retournés : {total_results}")
-    print(f"Chaînes sans résultat : {empty_queries}")
+    print(f"Entités sans résultat : {empty_queries}")
     print(f"Stratégies utilisées : {strategy_counts}")
 
+    output_metadata = dict(metadata)
+    if session_date is not None and "session_date" not in output_metadata:
+        output_metadata["session_date"] = session_date
+
     return {
-        "session_id": payload.get("session_id"),
-        "session_date": session_date,
-        "results": results_by_group,
+        "metadata": output_metadata,
+        "started_at": started_at,
+        "ended_at": ended_at,
+        "entities": response_entities,
+        "parameters": parameters,
     }
 
 
@@ -1203,10 +1280,11 @@ def main() -> None:
 
     print("No action requested.")
     print("Examples:")
-    print("  python3 app/index.py --build-index")
-    print("  python3 app/index.py --test-dates")
-    print("  python3 app/index.py --query 'jean jaurès' --session-date 1914-05-01")
-    print("  python3 app/index.py --json 'app/2026-06-03-1903-11-28-INFER-SPK.json' --output-json 'app/2026-06-03-1903-11-28-INFER-SPK.linked.json'")
+    print("  python3 app/index_infer.py --build-index")
+    print("  python3 app/index_infer.py --test-dates")
+    print("  python3 app/index_infer.py --query 'jean jaurès' --session-date 1914-05-01")
+    print("  python3 app/index_infer.py --json 'app/2026-06-03-1903-11-10-INFER-SPK.json' --output-json 'app/2026-06-03-1903-11-10-INFER-SPK-linked.json'")
+
 
 if __name__ == "__main__":
     main()

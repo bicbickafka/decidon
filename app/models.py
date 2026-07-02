@@ -87,7 +87,7 @@ class PersonEnrich(WikiEnrich):
 # ~~~~~~~~~~~~~~~~~~~ > Models < ~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 class Person(Base, PersonEnrich):
-    __tablename__ = "persons"
+    __tablename__ = "person"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     person_id: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
@@ -116,7 +116,7 @@ class Person(Base, PersonEnrich):
 
 
 class Mandate(Base, AbstractDate, WikiEnrich):
-    __tablename__ = "mandates"
+    __tablename__ = "mandate"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     mandate_id: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
@@ -138,14 +138,15 @@ class Mandate(Base, AbstractDate, WikiEnrich):
 
 
 class IsMemberOfMandate(Base, AbstractDate):
-    __tablename__ = "is_member_of_mandate"
+    __tablename__ = "person_mandate"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    person_id: Mapped[str] = mapped_column(ForeignKey("persons.person_id"), nullable=False, index=True)
-    mandate_id: Mapped[str] = mapped_column(ForeignKey("mandates.mandate_id"), nullable=False, index=True)
+    person_id: Mapped[str] = mapped_column(ForeignKey("person.person_id"), nullable=False, index=True)
+    mandate_id: Mapped[str] = mapped_column(ForeignKey("mandate.mandate_id"), nullable=False, index=True)
     position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    role: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     group: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    constituency: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    roles: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     person: Mapped["Person"] = relationship(back_populates="mandate_memberships")
     mandate: Mapped["Mandate"] = relationship(back_populates="members")
@@ -180,12 +181,12 @@ class Session(Base):
 
 
 class IsRelatedToSession(Base):
-    __tablename__ = "is_related_to_session"
+    __tablename__ = "person_session"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(ForeignKey("sessions.session_id"), nullable=False, index=True)
-    person_id: Mapped[str] = mapped_column(ForeignKey("persons.person_id"), nullable=False, index=True)
-    role: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    person_id: Mapped[str] = mapped_column(ForeignKey("person.person_id"), nullable=False, index=True)
+    roles: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     link_method: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
