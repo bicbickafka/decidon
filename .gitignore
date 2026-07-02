@@ -1,5 +1,6 @@
 # Virtual environments
 venv/
+.venv/
 ../.venv/
 
 # Database files
@@ -23,9 +24,9 @@ __pycache__/
 Thumbs.db
 
 # Search indexes
-indexdir/
+app/indexdir/
 
 # Specific files (quote paths with spaces)
-"app/VT tests"
+app/VT_tests
 db/run_migration.py
 db/tests-cascade.py
